@@ -12,13 +12,13 @@ function testConnections() {
   Logger.log('Spreadsheet name: ' + spreadsheet.getName());
 
   if (!sheet) {
-    throw new Error(`Sheet "${SHEET_NAME}" not found.`);
+    throw new Error(`Sheet \"${SHEET_NAME}\" not found.`);
   }
 
   Logger.log('Sheet name: ' + sheet.getName());
 }
 function testInvoiceEmailSearch() {
-  const query = 'has:attachment ("factura electrónica" OR "documento electrónico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"documento electrónico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   Logger.log('Threads found: ' + threads.length);
@@ -35,7 +35,7 @@ function testInvoiceEmailSearch() {
 }
 
 function testInvoiceAttachments() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 5);
 
   Logger.log('Threads found: ' + threads.length);
@@ -61,7 +61,7 @@ function testInvoiceAttachments() {
 }
 
 function testReadFirstXml() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -87,7 +87,7 @@ function testReadFirstXml() {
 }
 
 function testParseFirstXml() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -215,7 +215,7 @@ function getOrCreateChildFolder(parentFolder, folderName) {
 }
 
 function testSaveFirstInvoiceFiles() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -282,7 +282,7 @@ function saveFileIfNotExists(folder, attachment) {
 }
 
 function testAppendFirstInvoiceToSheet() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -398,7 +398,7 @@ function normalizeAmount(value) {
 }
 
 function testAppendFirstInvoiceToSheetNoDuplicates() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -499,7 +499,7 @@ function getOrCreateLabel(labelName) {
 }
 
 function testMarkFirstInvoiceEmailAsProcessed() {
-  const query = 'has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -535,7 +535,7 @@ function threadHasProcessedLabel(thread) {
 }
 
 function testSearchOnlyUnprocessedInvoiceEmails() {
-  const query = '-label:"facturas/procesado" has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = '-label:\"facturas/procesado\" has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   Logger.log('Unprocessed threads found: ' + threads.length);
@@ -552,7 +552,7 @@ function testSearchOnlyUnprocessedInvoiceEmails() {
 }
 
 function processPendingInvoiceEmails() {
-  const query = '-label:"facturas/procesado" has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const query = '-label:\"facturas/procesado\" has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 20);
 
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
