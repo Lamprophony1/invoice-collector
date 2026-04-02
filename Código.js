@@ -533,3 +533,120 @@ function threadHasProcessedLabel(thread) {
   const labels = thread.getLabels();
   return labels.some(label => label.getName() === PROCESSED_LABEL_NAME);
 }
+
+function testSearchOnlyUnprocessedInvoiceEmails() {
+  const query = '-label:"facturas/procesado" has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const threads = GmailApp.search(query, 0, 10);
+
+  Logger.log('Unprocessed threads found: ' + threads.length);
+
+  threads.forEach((thread, index) => {
+    const messages = thread.getMessages();
+
+    messages.forEach((message, msgIndex) => {
+      Logger.log(
+        `Thread ${index + 1}, Message ${msgIndex + 1} | Subject: ${message.getSubject()} | Date: ${message.getDate()}`
+      );
+    });
+  });
+}
+
+function processPendingInvoiceEmails() {
+  const query = '-label:"facturas/procesado" has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")';
+  const threads = GmailApp.search(query, 0, 20);
+
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+
+  let processedCount = 0;
+  let skippedDuplicates = 0;
+  let skippedInvalid = 0;
+
+  for (const thread of threads) {
+    if (threadHasProcessedLabel(thread)) {
+      continue;
+    }
+
+    let threadProcessed = false;
+    const messages = thread.getMessages();
+
+    for (const message of messages) {
+      const attachments = message.getAttachments();
+
+      let xmlAttachment = null;
+      let pdfAttachment = null;
+      let parsedData = null;
+
+      for (const attachment of attachments) {
+        const fileName = attachment.getName().toLowerCase();
+
+        if (fileName.endsWith('.xml')) {
+          xmlAttachment = attachment;
+          parsedData = parseInvoiceXml(attachment);
+        }
+
+        if (fileName.endsWith('.pdf')) {
+          pdfAttachment = attachment;
+        }
+      }
+
+      if (!xmlAttachment || !parsedData) {
+        continue;
+      }
+
+      if (invoiceAlreadyExists(sheet, parsedData.uniqueId)) {
+        markThreadAsProcessed(thread);
+        skippedDuplicates++;
+        threadProcessed = true;
+        Logger.log('Duplicate skipped and thread marked as processed: ' + parsedData.invoiceNumber);
+        break;
+      }
+
+      const monthFolder = getOrCreateMonthFolder(parsedData.issueDate);
+
+      const savedPdf = pdfAttachment ? saveFileIfNotExists(monthFolder, pdfAttachment) : null;
+      const savedXml = saveFileIfNotExists(monthFolder, xmlAttachment);
+
+      const row = [
+        message.getDate(),
+        parsedData.issueDate,
+        parsedData.supplierName,
+        parsedData.supplierRuc,
+        parsedData.timbrado,
+        parsedData.invoiceNumber,
+        parsedData.currency,
+        normalizeAmount(parsedData.exemptAmount),
+        normalizeAmount(parsedData.taxed5Amount),
+        normalizeAmount(parsedData.taxed10Amount),
+        normalizeAmount(parsedData.vatTotal),
+        normalizeAmount(parsedData.grandTotal),
+        parsedData.condition,
+        savedPdf ? savedPdf.getName() : '',
+        savedXml.getName(),
+        savedPdf ? savedPdf.getUrl() : '',
+        savedXml.getUrl(),
+        parsedData.uniqueId,
+        'Processed',
+        savedPdf ? savedPdf.getName() : savedXml.getName()
+      ];
+
+      sheet.appendRow(row);
+      markThreadAsProcessed(thread);
+
+      processedCount++;
+      threadProcessed = true;
+      Logger.log('Invoice processed successfully: ' + parsedData.invoiceNumber);
+      break;
+    }
+
+    if (!threadProcessed) {
+      skippedInvalid++;
+      Logger.log('Thread skipped: no valid XML invoice found.');
+    }
+  }
+
+  Logger.log('--- Summary ---');
+  Logger.log('Processed: ' + processedCount);
+  Logger.log('Duplicates skipped: ' + skippedDuplicates);
+  Logger.log('Invalid skipped: ' + skippedInvalid);
+}
