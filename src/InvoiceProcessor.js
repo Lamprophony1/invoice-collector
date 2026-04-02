@@ -353,39 +353,48 @@ function testAppendFirstInvoiceToSheet() {
 function parseInvoiceXml(attachment) {
   const xmlContent = attachment.getDataAsString();
   const document = XmlService.parse(xmlContent);
-  const root = document.getRootElement();
-  const ns = root.getNamespace();
+  let root = document.getRootElement();
 
-  const de = root.getChild('DE', ns);
+  const sifenNs = XmlService.getNamespace('http://ekuatia.set.gov.py/sifen/xsd');
+
+  if (root.getName() === 'rLoteDE') {
+    const rde = root.getChild('rDE', sifenNs);
+    if (!rde) {
+      throw new Error('No se encontró el nodo rDE dentro de rLoteDE.');
+    }
+    root = rde;
+  }
+
+  const de = root.getName() === 'DE' ? root : root.getChild('DE', sifenNs);
   if (!de) {
     throw new Error('No se encontró el nodo DE en el XML.');
   }
 
   const data = {
     uniqueId: de.getAttribute('Id') ? de.getAttribute('Id').getValue() : '',
-    documentType: getNestedText(de, ['gTimb', 'dDesTiDE'], ns),
-    timbrado: getNestedText(de, ['gTimb', 'dNumTim'], ns),
-    establishment: getNestedText(de, ['gTimb', 'dEst'], ns),
-    expeditionPoint: getNestedText(de, ['gTimb', 'dPunExp'], ns),
-    documentNumber: getNestedText(de, ['gTimb', 'dNumDoc'], ns),
-    issueDate: getNestedText(de, ['gDatGralOpe', 'dFeEmiDE'], ns),
-    supplierName: getNestedText(de, ['gDatGralOpe', 'gEmis', 'dNomEmi'], ns),
+    documentType: getNestedText(de, ['gTimb', 'dDesTiDE'], sifenNs),
+    timbrado: getNestedText(de, ['gTimb', 'dNumTim'], sifenNs),
+    establishment: getNestedText(de, ['gTimb', 'dEst'], sifenNs),
+    expeditionPoint: getNestedText(de, ['gTimb', 'dPunExp'], sifenNs),
+    documentNumber: getNestedText(de, ['gTimb', 'dNumDoc'], sifenNs),
+    issueDate: getNestedText(de, ['gDatGralOpe', 'dFeEmiDE'], sifenNs),
+    supplierName: getNestedText(de, ['gDatGralOpe', 'gEmis', 'dNomEmi'], sifenNs),
     supplierRuc: buildRuc(
-      getNestedText(de, ['gDatGralOpe', 'gEmis', 'dRucEm'], ns),
-      getNestedText(de, ['gDatGralOpe', 'gEmis', 'dDVEmi'], ns)
+      getNestedText(de, ['gDatGralOpe', 'gEmis', 'dRucEm'], sifenNs),
+      getNestedText(de, ['gDatGralOpe', 'gEmis', 'dDVEmi'], sifenNs)
     ),
-    customerName: getNestedText(de, ['gDatGralOpe', 'gDatRec', 'dNomRec'], ns),
+    customerName: getNestedText(de, ['gDatGralOpe', 'gDatRec', 'dNomRec'], sifenNs),
     customerRuc: buildRuc(
-      getNestedText(de, ['gDatGralOpe', 'gDatRec', 'dRucRec'], ns),
-      getNestedText(de, ['gDatGralOpe', 'gDatRec', 'dDVRec'], ns)
+      getNestedText(de, ['gDatGralOpe', 'gDatRec', 'dRucRec'], sifenNs),
+      getNestedText(de, ['gDatGralOpe', 'gDatRec', 'dDVRec'], sifenNs)
     ),
-    currency: getNestedText(de, ['gDatGralOpe', 'gOpeCom', 'cMoneOpe'], ns),
-    condition: getNestedText(de, ['gDtipDE', 'gCamCond', 'dDCondOpe'], ns),
-    exemptAmount: getNestedText(de, ['gTotSub', 'dSubExe'], ns),
-    taxed5Amount: getNestedText(de, ['gTotSub', 'dSub5'], ns),
-    taxed10Amount: getNestedText(de, ['gTotSub', 'dSub10'], ns),
-    vatTotal: getNestedText(de, ['gTotSub', 'dTotIVA'], ns),
-    grandTotal: getNestedText(de, ['gTotSub', 'dTotGralOpe'], ns)
+    currency: getNestedText(de, ['gDatGralOpe', 'gOpeCom', 'cMoneOpe'], sifenNs),
+    condition: getNestedText(de, ['gDtipDE', 'gCamCond', 'dDCondOpe'], sifenNs),
+    exemptAmount: getNestedText(de, ['gTotSub', 'dSubExe'], sifenNs),
+    taxed5Amount: getNestedText(de, ['gTotSub', 'dSub5'], sifenNs),
+    taxed10Amount: getNestedText(de, ['gTotSub', 'dSub10'], sifenNs),
+    vatTotal: getNestedText(de, ['gTotSub', 'dTotIVA'], sifenNs),
+    grandTotal: getNestedText(de, ['gTotSub', 'dTotGralOpe'], sifenNs)
   };
 
   data.invoiceNumber = `${data.establishment}-${data.expeditionPoint}-${data.documentNumber}`;
@@ -582,7 +591,15 @@ function processPendingInvoiceEmails() {
 
         if (fileName.endsWith('.xml')) {
           xmlAttachment = attachment;
-          parsedData = parseInvoiceXml(attachment);
+          Logger.log('Procesando XML adjunto: ' + attachment.getName());
+
+          try {
+            parsedData = parseInvoiceXml(attachment);
+          } catch (error) {
+            Logger.log('XML inválido: ' + attachment.getName() + ' -> ' + error.message);
+            Logger.log('Primeros 300 chars XML: ' + attachment.getDataAsString().substring(0, 300));
+            parsedData = null;
+          }
         }
 
         if (fileName.endsWith('.pdf')) {
