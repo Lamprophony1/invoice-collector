@@ -534,6 +534,78 @@ function getMonthSheetNameFromIssueDate(issueDateValue) {
   return MONTH_SHEET_NAMES[date.getMonth()];
 }
 
+function escapeFormulaText(value) {
+  return String(value || '').replace(/"/g, '""');
+}
+
+function buildHyperlinkFormula(fileName, fileUrl) {
+  if (!fileUrl) {
+    return '';
+  }
+
+  const label = fileName || fileUrl;
+  return '=HYPERLINK("' + escapeFormulaText(fileUrl) + '","' + escapeFormulaText(label) + '")';
+}
+
+function normalizeCondition(value) {
+  const condition = String(value || '').trim();
+  if (!condition) {
+    return '';
+  }
+
+  return condition.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function buildMonthlyInvoiceRow(parsedData, pdfFileName, pdfUrl, xmlFileName, xmlUrl) {
+  return [
+    getDateOnlyForSheet(parsedData.issueDate),
+    parsedData.supplierName,
+    parsedData.supplierRuc,
+    parsedData.timbrado,
+    parsedData.invoiceNumber,
+    parsedData.currency,
+    normalizeAmount(parsedData.exemptAmount),
+    normalizeAmount(parsedData.taxed5Amount),
+    normalizeAmount(parsedData.taxed10Amount),
+    normalizeAmount(parsedData.vatTotal),
+    normalizeAmount(parsedData.grandTotal),
+    normalizeCondition(parsedData.condition),
+    buildHyperlinkFormula(pdfFileName, pdfUrl),
+    buildHyperlinkFormula(xmlFileName, xmlUrl),
+    parsedData.uniqueId
+  ];
+}
+
+function objectFromHeaders(headers, row) {
+  const object = {};
+
+  headers.forEach((header, index) => {
+    object[header] = row[index];
+  });
+
+  return object;
+}
+
+function buildMonthlyInvoiceRowFromDetailObject(detail) {
+  return [
+    getDateOnlyForSheet(detail['Fecha']),
+    detail['Proveedor'],
+    detail['RUC Proveedor'],
+    detail['Timbrado'],
+    detail['Nro Factura'],
+    detail['Currency'],
+    normalizeAmount(detail['Exentas (Gs)']),
+    normalizeAmount(detail['Gravado 5% (Gs)']),
+    normalizeAmount(detail['Gravado 10% (Gs)']),
+    normalizeAmount(detail['IVA Total (Gs)']),
+    normalizeAmount(detail['Total (Gs)']),
+    normalizeCondition(detail['Condici\u00F3n'] || detail['Condicion']),
+    buildHyperlinkFormula(detail['PDF File Name'], detail['PDF Drive Link']),
+    buildHyperlinkFormula(detail['XML File Name'], detail['XML Drive Link']),
+    detail['Unique Id']
+  ];
+}
+
 function testAppendFirstInvoiceToSheetNoDuplicates() {
   const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
