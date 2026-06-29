@@ -1,7 +1,41 @@
 const ROOT_FOLDER_ID = '1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy';
 const SPREADSHEET_ID = '1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY';
-const SHEET_NAME = 'Detalle';
+const DETAIL_SHEET_NAME = 'Detalle';
+const SHEET_NAME = DETAIL_SHEET_NAME;
 const PROCESSED_LABEL_NAME = 'facturas/procesado';
+
+const MONTH_SHEET_NAMES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre'
+];
+
+const MONTH_DETAIL_HEADERS = [
+  'Fecha',
+  'Proveedor',
+  'RUC Proveedor',
+  'Timbrado',
+  'Nro Factura',
+  'Moneda',
+  'Exentas',
+  'Gravado 5%',
+  'Gravado 10%',
+  'IVA Total',
+  'Total',
+  'Condicion',
+  'PDF',
+  'XML',
+  'Unique Id'
+];
 
 function testConnections() {
   const folder = DriveApp.getFolderById(ROOT_FOLDER_ID);
@@ -452,6 +486,52 @@ function parseInvoiceXml(attachment) {
 function normalizeAmount(value) {
   const number = Number(value || 0);
   return Math.round(number * 100) / 100;
+}
+
+function parseDateValue(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value;
+  }
+
+  const rawValue = String(value || '').trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  const isoMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  }
+
+  const slashMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    return new Date(Number(slashMatch[3]), Number(slashMatch[2]) - 1, Number(slashMatch[1]));
+  }
+
+  const parsed = new Date(rawValue);
+  if (isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function getDateOnlyForSheet(value) {
+  const date = parseDateValue(value);
+  if (!date) {
+    return null;
+  }
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getMonthSheetNameFromIssueDate(issueDateValue) {
+  const date = parseDateValue(issueDateValue);
+  if (!date) {
+    throw new Error('Fecha de emision invalida: ' + issueDateValue);
+  }
+
+  return MONTH_SHEET_NAMES[date.getMonth()];
 }
 
 function testAppendFirstInvoiceToSheetNoDuplicates() {
