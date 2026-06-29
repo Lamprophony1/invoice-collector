@@ -103,10 +103,10 @@ Este proyecto fue vinculado a Google Apps Script usando `clasp`.
 Comandos típicos de trabajo:
 
 ```bash
-clasp login
-clasp pull
-clasp push
-clasp open
+clasp.cmd login
+clasp.cmd pull
+clasp.cmd push
+clasp.cmd open
 ```
 
 Uso habitual:
@@ -114,6 +114,13 @@ Uso habitual:
 - `clasp pull`: traer la versión actual del proyecto Apps Script al repo local.
 - `clasp push`: subir los cambios locales al proyecto Apps Script.
 - `clasp open`: abrir el proyecto Apps Script en el navegador.
+
+Estado local verificado el 2026-06-29:
+
+- `clasp.cmd --version` respondió `3.3.0`.
+- `clasp.cmd status` listó `src/appsscript.json` y `src/InvoiceProcessor.js`.
+- `clasp.cmd status` no mostró archivos extra no trackeados.
+- El pull de Apps Script ya fue realizado y actualizó `src/InvoiceProcessor.js`.
 
 ## Permisos esperados al ejecutar el script
 
@@ -130,14 +137,15 @@ La función principal prevista para automatización periódica es:
 
 `processPendingInvoiceEmails`
 
-Configuración objetivo del trigger:
+Configuración reportada en el handoff del 2026-06-29:
 
 - Event source: `Time-driven`
-- Type: `Minutes timer`
-- Interval: `Every 15 minutes`
+- Type: `Hour timer`
+- Interval: `Every hour`
 
 Estado actual:
-- La creación efectiva del trigger quedó pendiente de confirmación.
+- El handoff reporta que el trigger fue creado correctamente.
+- No crear otro trigger sin verificar primero en Apps Script.
 
 ## Estado del setup
 
@@ -151,5 +159,6 @@ Configuración validada manualmente:
 
 Pendiente por validar o cerrar:
 
-- confirmación del trigger automático en producción
+- confirmación del trigger automático en Apps Script remoto
+- corrida manual para identificar los hilos inválidos restantes
 - limpieza final del script para dejar solo funciones operativas y helpers necesarios

@@ -125,4 +125,6 @@ El flujo fue validado paso a paso con pruebas manuales sobre:
 - control de duplicados
 - etiquetado de correos procesados
 
-La automatización quedó funcional en modo manual y preparada para ejecución periódica mediante trigger.
+La automatización quedó funcional en modo manual. El handoff del 2026-06-29 reporta que luego se creó un trigger horario para `processPendingInvoiceEmails`.
+
+Para continuar desde el estado más reciente, usar primero `docs/context.md`.

@@ -1,8 +1,12 @@
 # invoice-collector
 
-Automatización de facturas electrónicas con Google Apps Script.
+Automatizacion de facturas electronicas con Google Apps Script.
 
-Este proyecto procesa correos de Gmail que contienen facturas electrónicas, identifica adjuntos XML y PDF, extrae los datos fiscales desde el XML, guarda los archivos en Google Drive y registra la información en Google Sheets.
+Este proyecto procesa correos de Gmail que contienen facturas electronicas, identifica adjuntos XML y PDF, extrae los datos fiscales desde el XML, guarda los archivos en Google Drive y registra la informacion en Google Sheets.
+
+## Para continuar el trabajo
+
+Leer primero [Contexto activo](docs/context.md). Ese archivo es la fuente viva para saber el estado actual y el proximo paso unico.
 
 ## Flujo general
 
@@ -18,7 +22,7 @@ Este proyecto procesa correos de Gmail que contienen facturas electrónicas, ide
 ## Componentes
 
 - **Gmail**: fuente de entrada de correos y adjuntos.
-- **Google Apps Script**: lógica de automatización.
+- **Google Apps Script**: logica de automatizacion.
 - **Google Drive**: almacenamiento documental por año/mes.
 - **Google Sheets**: registro tabular de facturas procesadas.
 
@@ -33,15 +37,8 @@ Este proyecto procesa correos de Gmail que contienen facturas electrónicas, ide
 
 ## Documentación
 
-La documentación detallada del proyecto se encuentra en `docs/`.
-
-## Estado
-
-Proyecto en construcción incremental, validado paso a paso con pruebas manuales sobre Gmail, Drive y Sheets.
-
-## Documentación
-
+- [Contexto activo](docs/context.md)
 - [Overview](docs/overview.md)
 - [Setup](docs/setup.md)
 - [Decisions](docs/decisions.md)
-- [Automation checkpoint — 2026-04-02](docs/history/2026-04-02-automation-checkpoint.md)
+- [History](docs/history/)

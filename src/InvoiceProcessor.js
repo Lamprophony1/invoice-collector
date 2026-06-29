@@ -351,21 +351,69 @@ function testAppendFirstInvoiceToSheet() {
 }
 
 function parseInvoiceXml(attachment) {
-  const xmlContent = attachment.getDataAsString();
+  let xmlContent = attachment.getDataAsString();
+
+  xmlContent = xmlContent.replace(/^\uFEFF/, '');
+  xmlContent = xmlContent.replace(/encoding="UTF-16"/i, 'encoding="UTF-8"');
+
   const document = XmlService.parse(xmlContent);
   let root = document.getRootElement();
 
   const sifenNs = XmlService.getNamespace('http://ekuatia.set.gov.py/sifen/xsd');
+  const soapNs = XmlService.getNamespace('http://www.w3.org/2003/05/soap-envelope');
 
-  if (root.getName() === 'rLoteDE') {
+  let de = null;
+
+  // Caso 1: raíz directa DE
+  if (root.getName() === 'DE') {
+    de = root;
+  }
+
+  // Caso 2: rLoteDE -> rDE -> DE
+  else if (root.getName() === 'rLoteDE') {
     const rde = root.getChild('rDE', sifenNs);
     if (!rde) {
       throw new Error('No se encontró el nodo rDE dentro de rLoteDE.');
     }
-    root = rde;
+
+    de = rde.getName() === 'DE' ? rde : rde.getChild('DE', sifenNs);
   }
 
-  const de = root.getName() === 'DE' ? root : root.getChild('DE', sifenNs);
+  // Caso 3: SOAP Envelope -> Body -> rEnviDe -> xDE -> rDE -> DE
+  else if (root.getName() === 'Envelope') {
+    const body = root.getChild('Body', soapNs);
+    if (!body) {
+      throw new Error('No se encontró el nodo Body dentro de Envelope.');
+    }
+
+    const rEnviDe = body.getChild('rEnviDe', sifenNs);
+    if (!rEnviDe) {
+      throw new Error('No se encontró el nodo rEnviDe dentro de Body.');
+    }
+
+    const xDE = rEnviDe.getChild('xDE', sifenNs);
+    if (!xDE) {
+      throw new Error('No se encontró el nodo xDE dentro de rEnviDe.');
+    }
+
+    const rde = xDE.getChild('rDE', sifenNs);
+    if (!rde) {
+      throw new Error('No se encontró el nodo rDE dentro de xDE.');
+    }
+
+    de = rde.getChild('DE', sifenNs);
+  }
+
+  // Caso 4: raíz rDE -> DE
+  else if (root.getName() === 'rDE') {
+    de = root.getChild('DE', sifenNs);
+  }
+
+  // Caso genérico
+  if (!de) {
+    de = root.getChild('DE', sifenNs);
+  }
+
   if (!de) {
     throw new Error('No se encontró el nodo DE en el XML.');
   }
@@ -572,6 +620,7 @@ function processPendingInvoiceEmails() {
   let skippedInvalid = 0;
 
   for (const thread of threads) {
+    Logger.log('Revisando thread: ' + thread.getFirstMessageSubject());
     if (threadHasProcessedLabel(thread)) {
       continue;
     }
