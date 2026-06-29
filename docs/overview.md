@@ -2,11 +2,11 @@
 
 ## Objetivo
 
-Automatizar el procesamiento de facturas electrónicas recibidas por correo, usando Google Apps Script para integrar Gmail, Google Drive y Google Sheets.
+Automatizar el procesamiento de facturas electronicas recibidas por correo, usando Google Apps Script para integrar Gmail, Google Drive y Google Sheets.
 
 ## Alcance funcional
 
-El sistema busca correos candidatos con adjuntos de factura, identifica archivos XML y PDF, extrae los datos fiscales desde el XML, guarda los archivos en Google Drive y registra cada factura en una hoja de Google Sheets.
+El sistema busca correos candidatos con adjuntos de factura, identifica archivos XML y PDF, extrae los datos fiscales desde el XML, guarda los archivos en Google Drive y registra cada factura en hojas mensuales de Google Sheets.
 
 ## Flujo funcional
 
@@ -14,11 +14,11 @@ El sistema busca correos candidatos con adjuntos de factura, identifica archivos
 2. Excluir correos ya procesados mediante la etiqueta `facturas/procesado`.
 3. Identificar adjuntos `.xml` y `.pdf`.
 4. Parsear el XML como fuente principal de datos.
-5. Determinar la carpeta destino según la fecha de emisión del XML.
-6. Crear o reutilizar carpeta de año y mes en Google Drive.
+5. Determinar la carpeta destino segun la fecha de emision del XML.
+6. Crear o reutilizar carpeta de anio y mes en Google Drive.
 7. Guardar XML y PDF en la carpeta correspondiente.
-8. Verificar si la factura ya existe en Google Sheets.
-9. Registrar la factura en la hoja `Detalle`.
+8. Verificar si la factura ya existe en las hojas mensuales de Google Sheets.
+9. Registrar la factura en la hoja mensual correspondiente.
 10. Marcar el hilo como procesado.
 
 ## Fuente de datos
@@ -26,15 +26,15 @@ El sistema busca correos candidatos con adjuntos de factura, identifica archivos
 ### XML
 
 Fuente principal para:
-- fecha de emisión
+- fecha de emision
 - proveedor
 - RUC proveedor
 - timbrado
-- número de factura
+- numero de factura
 - moneda
-- condición
+- condicion
 - importes
-- identificador único
+- identificador unico
 
 ### PDF
 
@@ -48,15 +48,15 @@ Entrada de correos y adjuntos.
 
 ### Google Apps Script
 
-Lógica de búsqueda, parsing, guardado y registro.
+Logica de busqueda, parsing, guardado y registro.
 
 ### Google Drive
 
-Almacenamiento documental organizado por año y mes.
+Almacenamiento documental organizado por anio y mes.
 
 ### Google Sheets
 
-Registro estructurado de facturas procesadas.
+Registro contable estructurado en hojas mensuales.
 
 ## Estructura de almacenamiento en Drive
 
@@ -70,61 +70,77 @@ Registro estructurado de facturas procesadas.
 ## Estructura de registro en Sheets
 
 Archivo:
-`Resumen Facturas Electrónicas 2026`
+`Resumen Facturas Electronicas 2026`
 
-Hoja:
-`Detalle`
+La salida contable principal usa hojas mensuales:
+- Enero
+- Febrero
+- Marzo
+- Abril
+- Mayo
+- Junio
+- Julio
+- Agosto
+- Septiembre
+- Octubre
+- Noviembre
+- Diciembre
 
-Columnas:
-- Received At
+Cada hoja mensual contiene:
+- resumen mensual arriba
+- totales por condicion
+- totales por moneda
+- totales por proveedor/RUC
+- detalle fila por fila abajo
+
+Columnas del detalle mensual:
 - Fecha
 - Proveedor
 - RUC Proveedor
 - Timbrado
 - Nro Factura
-- Currency
-- Exentas (Gs)
-- Gravado 5% (Gs)
-- Gravado 10% (Gs)
-- IVA Total (Gs)
-- Total (Gs)
-- Condición
-- PDF File Name
-- XML File Name
-- PDF Drive Link
-- XML Drive Link
+- Moneda
+- Exentas
+- Gravado 5%
+- Gravado 10%
+- IVA Total
+- Total
+- Condicion
+- PDF
+- XML
 - Unique Id
-- Status
-- Archivo
 
-## Función principal
+La hoja `Detalle` queda como respaldo temporal de migracion. No es la salida contable principal.
 
-La función principal esperada del flujo es:
+## Funcion principal
+
+La funcion principal esperada del flujo es:
 
 `processPendingInvoiceEmails`
 
-Esta función:
+Esta funcion:
 - busca correos pendientes
-- procesa facturas válidas
-- evita duplicados
+- procesa facturas validas
+- evita duplicados en hojas mensuales
 - guarda archivos
-- registra filas en Sheets
+- registra filas en la hoja mensual correspondiente
 - marca correos como procesados
 
 ## Estado general del flujo
 
 El flujo fue validado paso a paso con pruebas manuales sobre:
-- conexión a Google Drive
-- conexión a Google Sheets
-- búsqueda de correos en Gmail
-- detección de adjuntos XML y PDF
+- conexion a Google Drive
+- conexion a Google Sheets
+- busqueda de correos en Gmail
+- deteccion de adjuntos XML y PDF
 - lectura y parseo de XML
-- creación de carpetas mensuales
+- creacion de carpetas mensuales
 - guardado de archivos
-- inserción de filas en Sheets
-- control de duplicados
+- migracion desde `Detalle`
+- registro en hojas mensuales
+- control de duplicados por `Unique Id`
 - etiquetado de correos procesados
 
-La automatización quedó funcional en modo manual. El handoff del 2026-06-29 reporta que luego se creó un trigger horario para `processPendingInvoiceEmails`.
+La automatizacion quedo funcional en modo manual. El handoff del 2026-06-29 reporta que luego se creo un trigger horario para `processPendingInvoiceEmails`.
 
-Para continuar desde el estado más reciente, usar primero `docs/context.md`.
+Para continuar desde el estado mas reciente, usar primero `docs/context.md`.

@@ -23,7 +23,8 @@ Automatizar el procesamiento de facturas electronicas recibidas por Gmail:
 - Folder ID: `1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy`
 - Spreadsheet: `Resumen Facturas Electronicas 2026`
 - Spreadsheet ID: `1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY`
-- Hoja: `Detalle`
+- Salida principal en Sheets: hojas mensuales `Enero` a `Diciembre`
+- Hoja historica/respaldo temporal: `Detalle`
 - Label Gmail: `facturas/procesado`
 - Apps Script root local: `src/`
 - Funcion principal: `processPendingInvoiceEmails`
@@ -49,6 +50,8 @@ Estado local de `src/InvoiceProcessor.js`:
 - Tiene soporte para SOAP Envelope: `Envelope -> Body -> rEnviDe -> xDE -> rDE -> DE`.
 - Normaliza XML con BOM y declaracion `encoding="UTF-16"`.
 - Tiene el log `Revisando thread: ...` al inicio del loop de threads.
+- Registra facturas nuevas en hojas mensuales, no en `Detalle`.
+- Controla duplicados por `Unique Id` en las hojas mensuales.
 - Las funciones de prueba y produccion siguen mezcladas. No limpiarlas todavia.
 
 ## Estado reportado por el handoff
@@ -108,9 +111,18 @@ Decision operativa:
 - La implementacion de hojas mensuales puede continuar porque la migracion desde `Detalle` no depende de que estos hilos pendientes tengan XML valido.
 - Mas adelante conviene decidir si estos hilos deben marcarse como procesados, excluirse por query o tratarse con otra regla.
 
+## Estado de salida contable
+
+- La salida principal de Sheets son hojas mensuales: `Enero`, `Febrero`, `Marzo`, `Abril`, `Mayo`, `Junio`, `Julio`, `Agosto`, `Septiembre`, `Octubre`, `Noviembre`, `Diciembre`.
+- Cada hoja mensual tiene resumen arriba y detalle fila por fila abajo.
+- `Detalle` queda como respaldo temporal de migracion.
+- Las fechas en hojas mensuales se muestran como `dd/MM/yyyy`, sin hora.
+- Los links de PDF/XML se escriben como formulas `HYPERLINK`.
+- La migracion desde `Detalle` fue auditada el 2026-06-29: 219 `Unique Ids` en `Detalle`, 219 en hojas mensuales, 0 faltantes y 0 extras.
+
 ## Proximo paso unico
 
-Implementar la salida contable por hojas mensuales segun `docs/superpowers/plans/2026-06-29-hojas-mensuales-implementation.md`.
+Completar la verificacion final y documentacion de la salida contable por hojas mensuales segun `docs/superpowers/plans/2026-06-29-hojas-mensuales-implementation.md`.
 
 ## Reglas de trabajo
 

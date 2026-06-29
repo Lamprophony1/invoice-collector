@@ -1,14 +1,14 @@
 # Setup
 
-## Propósito
+## Proposito
 
-Este documento describe la configuración mínima necesaria para ejecutar y mantener la automatización de facturas electrónicas en Google Apps Script.
+Este documento describe la configuracion minima necesaria para ejecutar y mantener la automatizacion de facturas electronicas en Google Apps Script.
 
 ## Recursos utilizados
 
 ### Google Drive
 
-Carpeta raíz compartida:
+Carpeta raiz compartida:
 `2- Contabilidad Rafael Garcia`
 
 Folder ID:
@@ -17,12 +17,15 @@ Folder ID:
 ### Google Sheets
 
 Archivo:
-`Resumen Facturas Electrónicas 2026`
+`Resumen Facturas Electronicas 2026`
 
 Spreadsheet ID:
 `1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY`
 
-Hoja de trabajo:
+Salida principal:
+hojas mensuales `Enero` a `Diciembre`
+
+Respaldo temporal:
 `Detalle`
 
 ### Gmail
@@ -32,51 +35,77 @@ Etiqueta de correos procesados:
 
 ## Constantes del script
 
-La configuración base esperada en el código es:
+La configuracion base esperada en el codigo es:
 
 ```javascript
 const ROOT_FOLDER_ID = '1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy';
 const SPREADSHEET_ID = '1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY';
-const SHEET_NAME = 'Detalle';
+const DETAIL_SHEET_NAME = 'Detalle';
+const SHEET_NAME = DETAIL_SHEET_NAME;
 const PROCESSED_LABEL_NAME = 'facturas/procesado';
 ```
 
-## Encabezados esperados en Google Sheets
+## Hojas mensuales
 
-La hoja `Detalle` debe tener estas columnas en la fila 1:
+La planilla anual debe tener o permitir crear estas hojas:
 
-- Received At
+- Enero
+- Febrero
+- Marzo
+- Abril
+- Mayo
+- Junio
+- Julio
+- Agosto
+- Septiembre
+- Octubre
+- Noviembre
+- Diciembre
+
+Cada hoja mensual contiene resumen arriba y detalle abajo.
+
+Columnas del detalle mensual:
+
 - Fecha
 - Proveedor
 - RUC Proveedor
 - Timbrado
 - Nro Factura
-- Currency
-- Exentas (Gs)
-- Gravado 5% (Gs)
-- Gravado 10% (Gs)
-- IVA Total (Gs)
-- Total (Gs)
-- Condición
-- PDF File Name
-- XML File Name
-- PDF Drive Link
-- XML Drive Link
+- Moneda
+- Exentas
+- Gravado 5%
+- Gravado 10%
+- IVA Total
+- Total
+- Condicion
+- PDF
+- XML
 - Unique Id
-- Status
-- Archivo
 
-## Búsqueda de correos
+Las fechas se formatean como `dd/MM/yyyy`, sin hora.
 
-La búsqueda funcional validada para encontrar correos candidatos fue:
+## Hoja historica `Detalle`
+
+`Detalle` queda como respaldo temporal de migracion. La funcion principal ya no escribe nuevas facturas ahi.
+
+Funciones operativas relacionadas:
+
+- `migrateDetalleToMonthlySheets`: migra filas existentes desde `Detalle` a hojas mensuales.
+- `auditDetalleToMonthlySheets`: valida que los `Unique Ids` de `Detalle` existan en hojas mensuales.
+
+## Busqueda de correos
+
+La busqueda funcional validada para encontrar correos candidatos fue:
 
 ```text
--label:"facturas/procesado" has:attachment ("factura electrónica" OR "factura electronica" OR "documento electrónico" OR "documento electronico")
+-label:"facturas/procesado" has:attachment ("factura electronica" OR "documento electronico")
 ```
+
+El codigo tambien mantiene variantes con acentos en la query.
 
 ## Estructura esperada en Drive
 
-Las facturas se guardan bajo la carpeta raíz, organizadas por año y mes según la fecha de emisión del XML.
+Las facturas se guardan bajo la carpeta raiz, organizadas por anio y mes segun la fecha de emision del XML.
 
 Ejemplo:
 
@@ -91,16 +120,16 @@ Ejemplo:
 
 - El XML es la fuente principal de datos.
 - El PDF se guarda como respaldo documental.
-- La identificación de archivos se hace por extensión (`.xml`, `.pdf`).
-- La fecha de emisión del XML define la carpeta mensual.
-- El `Unique Id` evita duplicados en la planilla.
+- La identificacion de archivos se hace por extension (`.xml`, `.pdf`).
+- La fecha de emision del XML define la carpeta mensual y la hoja mensual.
+- El `Unique Id` evita duplicados en hojas mensuales.
 - La etiqueta `facturas/procesado` evita reprocesar correos.
 
-## Sincronización con clasp
+## Sincronizacion con clasp
 
 Este proyecto fue vinculado a Google Apps Script usando `clasp`.
 
-Comandos típicos de trabajo:
+Comandos tipicos de trabajo:
 
 ```bash
 clasp.cmd login
@@ -111,54 +140,63 @@ clasp.cmd open
 
 Uso habitual:
 
-- `clasp pull`: traer la versión actual del proyecto Apps Script al repo local.
+- `clasp pull`: traer la version actual del proyecto Apps Script al repo local.
 - `clasp push`: subir los cambios locales al proyecto Apps Script.
 - `clasp open`: abrir el proyecto Apps Script en el navegador.
 
+Nota operativa:
+
+- `clasp.cmd run` no esta disponible en este proyecto mientras no este desplegado como API executable.
+- Las funciones se ejecutan manualmente desde el editor de Apps Script.
+
 Estado local verificado el 2026-06-29:
 
-- `clasp.cmd --version` respondió `3.3.0`.
-- `clasp.cmd status` listó `src/appsscript.json` y `src/InvoiceProcessor.js`.
-- `clasp.cmd status` no mostró archivos extra no trackeados.
-- El pull de Apps Script ya fue realizado y actualizó `src/InvoiceProcessor.js`.
+- `clasp.cmd --version` respondio `3.3.0`.
+- `clasp.cmd status` listo `src/appsscript.json` y `src/InvoiceProcessor.js`.
+- `clasp.cmd status` no mostro archivos extra no trackeados.
+- El pull de Apps Script ya fue realizado y actualizo `src/InvoiceProcessor.js`.
 
 ## Permisos esperados al ejecutar el script
 
-En la primera ejecución, Google Apps Script solicitará permisos para:
+En la primera ejecucion, Google Apps Script solicitara permisos para:
 
 - leer correos en Gmail
 - leer y etiquetar hilos en Gmail
 - acceder a Google Drive
 - acceder a Google Sheets
 
-## Trigger automático
+## Trigger automatico
 
-La función principal prevista para automatización periódica es:
+La funcion principal prevista para automatizacion periodica es:
 
 `processPendingInvoiceEmails`
 
-Configuración reportada en el handoff del 2026-06-29:
+Configuracion reportada en el handoff del 2026-06-29:
 
 - Event source: `Time-driven`
 - Type: `Hour timer`
 - Interval: `Every hour`
 
 Estado actual:
+
 - El handoff reporta que el trigger fue creado correctamente.
 - No crear otro trigger sin verificar primero en Apps Script.
+- El trigger debe ejecutar la version que registra en hojas mensuales.
 
 ## Estado del setup
 
-Configuración validada manualmente:
+Configuracion validada manualmente:
 
 - acceso a carpeta de Drive
 - acceso a Google Sheets
-- acceso a hoja `Detalle`
-- búsqueda de correos en Gmail
+- migracion de `Detalle` a hojas mensuales
+- auditoria de 219 `Unique Ids` migrados, sin faltantes ni extras
+- busqueda de correos en Gmail
 - etiquetado de correos procesados
+- ejecucion manual de `processPendingInvoiceEmails` sin excepciones despues del cambio mensual
 
 Pendiente por validar o cerrar:
 
-- confirmación del trigger automático en Apps Script remoto
-- corrida manual para identificar los hilos inválidos restantes
+- confirmacion visual final de las hojas mensuales en Sheets
+- decision posterior sobre hilos candidatos sin XML valido
 - limpieza final del script para dejar solo funciones operativas y helpers necesarios
