@@ -606,6 +606,196 @@ function buildMonthlyInvoiceRowFromDetailObject(detail) {
   ];
 }
 
+function getOrCreateSheet(spreadsheet, sheetName) {
+  let sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  }
+
+  return sheet;
+}
+
+function addSummaryBucket(map, key, total) {
+  const normalizedKey = String(key || 'Sin dato').trim() || 'Sin dato';
+  if (!map[normalizedKey]) {
+    map[normalizedKey] = { count: 0, total: 0 };
+  }
+
+  map[normalizedKey].count++;
+  map[normalizedKey].total += Number(total || 0);
+}
+
+function addSupplierSummaryBucket(map, supplier, ruc, total) {
+  const supplierName = String(supplier || 'Sin proveedor').trim() || 'Sin proveedor';
+  const supplierRuc = String(ruc || '').trim();
+  const key = supplierName + '|' + supplierRuc;
+
+  if (!map[key]) {
+    map[key] = {
+      supplier: supplierName,
+      ruc: supplierRuc,
+      count: 0,
+      total: 0
+    };
+  }
+
+  map[key].count++;
+  map[key].total += Number(total || 0);
+}
+
+function calculateMonthlySummary(rows) {
+  const summary = {
+    count: rows.length,
+    exemptTotal: 0,
+    taxed5Total: 0,
+    taxed10Total: 0,
+    vatTotal: 0,
+    grandTotal: 0,
+    byCondition: {},
+    byCurrency: {},
+    bySupplier: {}
+  };
+
+  rows.forEach(row => {
+    const grandTotal = Number(row[10] || 0);
+
+    summary.exemptTotal += Number(row[6] || 0);
+    summary.taxed5Total += Number(row[7] || 0);
+    summary.taxed10Total += Number(row[8] || 0);
+    summary.vatTotal += Number(row[9] || 0);
+    summary.grandTotal += grandTotal;
+
+    addSummaryBucket(summary.byCondition, row[11], grandTotal);
+    addSummaryBucket(summary.byCurrency, row[5], grandTotal);
+    addSupplierSummaryBucket(summary.bySupplier, row[1], row[2], grandTotal);
+  });
+
+  return summary;
+}
+
+function appendSummaryMapRows(outputRows, title, headers, values) {
+  outputRows.push(['']);
+  outputRows.push([title]);
+  outputRows.push(headers);
+
+  values.forEach(value => {
+    outputRows.push(value);
+  });
+}
+
+function buildMonthlySheetValues(rows) {
+  const summary = calculateMonthlySummary(rows);
+  const outputRows = [
+    ['Resumen mensual'],
+    ['Concepto', 'Valor'],
+    ['Cantidad de facturas', summary.count],
+    ['Total exentas', summary.exemptTotal],
+    ['Total gravado 5%', summary.taxed5Total],
+    ['Total gravado 10%', summary.taxed10Total],
+    ['Total IVA', summary.vatTotal],
+    ['Total general', summary.grandTotal]
+  ];
+
+  appendSummaryMapRows(
+    outputRows,
+    'Totales por condicion',
+    ['Condicion', 'Cantidad', 'Total'],
+    Object.keys(summary.byCondition).sort().map(key => [key, summary.byCondition[key].count, summary.byCondition[key].total])
+  );
+
+  appendSummaryMapRows(
+    outputRows,
+    'Totales por moneda',
+    ['Moneda', 'Cantidad', 'Total'],
+    Object.keys(summary.byCurrency).sort().map(key => [key, summary.byCurrency[key].count, summary.byCurrency[key].total])
+  );
+
+  appendSummaryMapRows(
+    outputRows,
+    'Totales por proveedor/RUC',
+    ['Proveedor', 'RUC Proveedor', 'Cantidad', 'Total'],
+    Object.keys(summary.bySupplier).sort().map(key => {
+      const supplier = summary.bySupplier[key];
+      return [supplier.supplier, supplier.ruc, supplier.count, supplier.total];
+    })
+  );
+
+  outputRows.push(['']);
+  outputRows.push(['Detalle']);
+  outputRows.push(MONTH_DETAIL_HEADERS);
+
+  rows.forEach(row => outputRows.push(row));
+
+  return outputRows;
+}
+
+function findMonthlyDetailHeaderRow(values) {
+  for (let rowIndex = 0; rowIndex < values.length; rowIndex++) {
+    const row = values[rowIndex];
+    const matches = MONTH_DETAIL_HEADERS.every((header, index) => row[index] === header);
+    if (matches) {
+      return rowIndex + 1;
+    }
+  }
+
+  return 0;
+}
+
+function getMonthlyDetailRows(sheet) {
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  const formulas = range.getFormulas ? range.getFormulas() : values.map(row => row.map(() => ''));
+  const headerRow = findMonthlyDetailHeaderRow(values);
+  if (!headerRow) {
+    return [];
+  }
+
+  return values
+    .slice(headerRow)
+    .map((row, rowIndex) => {
+      const sheetRowIndex = headerRow + rowIndex;
+      const rowFormulas = formulas[sheetRowIndex] || [];
+      const rowWithFormulas = row.slice();
+      rowWithFormulas[12] = rowFormulas[12] || rowWithFormulas[12];
+      rowWithFormulas[13] = rowFormulas[13] || rowWithFormulas[13];
+      return rowWithFormulas;
+    })
+    .filter(row => String(row[14] || '').trim());
+}
+
+function writeMonthlySheet(sheet, rows) {
+  const values = buildMonthlySheetValues(rows);
+  const width = Math.max.apply(null, values.map(row => row.length));
+  const normalizedValues = values.map(row => {
+    const copy = row.slice();
+    while (copy.length < width) {
+      copy.push('');
+    }
+    return copy;
+  });
+
+  sheet.clear();
+  sheet.getRange(1, 1, normalizedValues.length, width).setValues(normalizedValues);
+
+  const headerRow = findMonthlyDetailHeaderRow(normalizedValues);
+  if (headerRow) {
+    sheet.getRange(headerRow, 1, 1, MONTH_DETAIL_HEADERS.length).setFontWeight('bold');
+    if (rows.length > 0) {
+      sheet.getRange(headerRow + 1, 1, rows.length, 1).setNumberFormat('dd/MM/yyyy');
+      sheet.getRange(headerRow + 1, 7, rows.length, 5).setNumberFormat('#,##0.00');
+    }
+  }
+
+  sheet.autoResizeColumns(1, Math.min(width, MONTH_DETAIL_HEADERS.length));
+}
+
+function appendInvoiceToMonthlySheet(spreadsheet, sheetName, row) {
+  const sheet = getOrCreateSheet(spreadsheet, sheetName);
+  const rows = getMonthlyDetailRows(sheet);
+  rows.push(row);
+  writeMonthlySheet(sheet, rows);
+}
+
 function testAppendFirstInvoiceToSheetNoDuplicates() {
   const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);

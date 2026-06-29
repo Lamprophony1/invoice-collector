@@ -71,3 +71,63 @@ test('monthly row builder returns accountant-friendly detail row', () => {
   assert.equal(row[13], '=HYPERLINK("https://example.com/xml","Factura.xml")');
   assert.equal(row[14], '01800863631001001000020622026031112896089493');
 });
+
+test('monthly summary builder aggregates totals by condition, currency, and supplier', () => {
+  const app = loadInvoiceProcessor();
+  const rows = [
+    [new Date(2026, 2, 11), 'Proveedor A', '80000001-1', '100', '001-001-0000001', 'PYG', 100, 200, 300, 50, 600, 'Contado', '', '', 'uid-1'],
+    [new Date(2026, 2, 12), 'Proveedor A', '80000001-1', '100', '001-001-0000002', 'PYG', 0, 0, 400, 40, 400, 'Credito', '', '', 'uid-2'],
+    [new Date(2026, 2, 13), 'Proveedor B', '80000002-2', '101', '001-001-0000003', 'USD', 10, 20, 30, 5, 60, 'Contado', '', '', 'uid-3']
+  ];
+
+  assert.equal(typeof app.calculateMonthlySummary, 'function');
+
+  const summary = app.calculateMonthlySummary(rows);
+
+  assert.equal(summary.count, 3);
+  assert.equal(summary.exemptTotal, 110);
+  assert.equal(summary.taxed5Total, 220);
+  assert.equal(summary.taxed10Total, 730);
+  assert.equal(summary.vatTotal, 95);
+  assert.equal(summary.grandTotal, 1060);
+  assert.equal(summary.byCondition.Contado.total, 660);
+  assert.equal(summary.byCurrency.PYG.count, 2);
+  assert.equal(summary.bySupplier['Proveedor A|80000001-1'].total, 1000);
+});
+
+test('monthly sheet values render summary before detail rows', () => {
+  const app = loadInvoiceProcessor();
+  const rows = [
+    [new Date(2026, 2, 11), 'Proveedor A', '80000001-1', '100', '001-001-0000001', 'PYG', 100, 200, 300, 50, 600, 'Contado', '', '', 'uid-1']
+  ];
+
+  assert.equal(typeof app.buildMonthlySheetValues, 'function');
+  assert.equal(typeof app.findMonthlyDetailHeaderRow, 'function');
+
+  const values = app.buildMonthlySheetValues(rows);
+  const headerRow = app.findMonthlyDetailHeaderRow(values);
+  const expectedHeaders = [
+    'Fecha',
+    'Proveedor',
+    'RUC Proveedor',
+    'Timbrado',
+    'Nro Factura',
+    'Moneda',
+    'Exentas',
+    'Gravado 5%',
+    'Gravado 10%',
+    'IVA Total',
+    'Total',
+    'Condicion',
+    'PDF',
+    'XML',
+    'Unique Id'
+  ];
+
+  assert.equal(values[0][0], 'Resumen mensual');
+  assert.deepEqual(Array.from(values[1].slice(0, 2)), ['Concepto', 'Valor']);
+  assert.deepEqual(Array.from(values[2].slice(0, 2)), ['Cantidad de facturas', 1]);
+  assert.equal(values[headerRow - 2][0], 'Detalle');
+  assert.deepEqual(Array.from(values[headerRow - 1]), expectedHeaders);
+  assert.equal(values[headerRow][14], 'uid-1');
+});
