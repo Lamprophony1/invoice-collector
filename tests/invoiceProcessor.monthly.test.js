@@ -131,3 +131,29 @@ test('monthly sheet values render summary before detail rows', () => {
   assert.deepEqual(Array.from(values[headerRow - 1]), expectedHeaders);
   assert.equal(values[headerRow][14], 'uid-1');
 });
+
+test('monthly duplicate detection finds unique ids in monthly sheets', () => {
+  const app = loadInvoiceProcessor();
+  const values = app.buildMonthlySheetValues([
+    [new Date(2026, 2, 11), 'Proveedor A', '80000001-1', '100', '001-001-0000001', 'PYG', 100, 200, 300, 50, 600, 'Contado', '', '', 'uid-test']
+  ]);
+  const formulas = values.map(row => row.map(() => ''));
+  const sheet = {
+    getDataRange() {
+      return {
+        getValues() {
+          return values;
+        },
+        getFormulas() {
+          return formulas;
+        }
+      };
+    }
+  };
+
+  assert.equal(typeof app.invoiceAlreadyExistsInSheets, 'function');
+
+  assert.equal(app.invoiceAlreadyExistsInSheets([sheet], 'uid-test'), true);
+  assert.equal(app.invoiceAlreadyExistsInSheets([sheet], 'uid-missing'), false);
+  assert.equal(app.invoiceAlreadyExistsInSheets([sheet], ''), false);
+});

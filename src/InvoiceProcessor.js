@@ -763,6 +763,28 @@ function getMonthlyDetailRows(sheet) {
     .filter(row => String(row[14] || '').trim());
 }
 
+function invoiceAlreadyExistsInSheets(sheets, uniqueId) {
+  const targetUniqueId = String(uniqueId || '').trim();
+  if (!targetUniqueId) {
+    return false;
+  }
+
+  return sheets.some(sheet => {
+    const rows = getMonthlyDetailRows(sheet);
+    return rows.some(row => String(row[14] || '').trim() === targetUniqueId);
+  });
+}
+
+function getExistingMonthlySheets(spreadsheet) {
+  return MONTH_SHEET_NAMES
+    .map(sheetName => spreadsheet.getSheetByName(sheetName))
+    .filter(sheet => sheet);
+}
+
+function invoiceAlreadyExistsInMonthlySheets(spreadsheet, uniqueId) {
+  return invoiceAlreadyExistsInSheets(getExistingMonthlySheets(spreadsheet), uniqueId);
+}
+
 function writeMonthlySheet(sheet, rows) {
   const values = buildMonthlySheetValues(rows);
   const width = Math.max.apply(null, values.map(row => row.length));
