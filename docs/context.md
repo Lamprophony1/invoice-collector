@@ -71,15 +71,46 @@ Segun ese handoff:
 
 Importante: despues del pull, esa version ya esta reflejada en el archivo local actual.
 
+## Preflight de hilos invalidos
+
+Corrida manual ejecutada desde Apps Script el 2026-06-29 a las 13:12.
+
+Resumen:
+
+- `Processed: 0`
+- `Duplicates skipped: 0`
+- `Invalid skipped: 18`
+
+Subjects revisados que terminaron como `Thread skipped: no valid XML invoice found.`:
+
+- `Factura Electronica Sudameris`
+- `Factura Electronica Sudameris`
+- `Notificacion de credencial universitaria disponible`
+- `AVISO DE PAGO DE SERVICIOS`
+- `Notificacion de credencial universitaria disponible`
+- `FUJII DAVALOS S.A. Documento Electronico`
+- `890903407;SEGUROS GENERALES SURAMERICANA S.A;10414580272;01;SEGUROS GENERALES SURAMERICANA S.A;041`
+- `890903407;SEGUROS GENERALES SURAMERICANA S.A;10414174497;01;SEGUROS GENERALES SURAMERICANA S.A;041`
+- `Factura Electronica por servicios informaticos prestados.`
+- `Factura Electronica DOCUMENTA S.A.`
+- `Bancard - Factura por Costo del Servicio`
+- `900692428; UNIMARKA SAS; ETV69770; 01; UNIMARKA SAS`
+- `900692428; UNIMARKA SAS; ETV68954; 01; UNIMARKA SAS`
+- `900692428; UNIMARKA SAS; ETV68033; 01; UNIMARKA SAS`
+- `900692428; UNIMARKA SAS; ETV61233; 01; UNIMARKA SAS`
+- `AVISO DE PAGO DE SERVICIOS`
+- `Bancard - Factura por Costo del Servicio`
+- `900692428;UNIMARKA S.A.S;ETV24332;01;UNIMARKA S.A.S`
+
+Decision operativa:
+
+- La depuracion de estos hilos queda como seguimiento separado.
+- La implementacion de hojas mensuales puede continuar porque la migracion desde `Detalle` no depende de que estos hilos pendientes tengan XML valido.
+- Mas adelante conviene decidir si estos hilos deben marcarse como procesados, excluirse por query o tratarse con otra regla.
+
 ## Proximo paso unico
 
-1. Ejecutar una corrida manual de `processPendingInvoiceEmails` desde Apps Script.
-2. Revisar solo estas lineas de log:
-   - `Revisando thread: ...`
-   - `Thread skipped: no valid XML invoice found.`
-   - resumen final `Processed`, `Duplicates skipped`, `Invalid skipped`
-
-Objetivo de ese paso: identificar los 3 hilos invalidos restantes y decidir si se ignoran, se marcan como procesados, se excluyen por query o requieren otro manejo.
+Implementar la salida contable por hojas mensuales segun `docs/superpowers/plans/2026-06-29-hojas-mensuales-implementation.md`.
 
 ## Reglas de trabajo
 
