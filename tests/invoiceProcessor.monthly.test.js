@@ -157,3 +157,80 @@ test('monthly duplicate detection finds unique ids in monthly sheets', () => {
   assert.equal(app.invoiceAlreadyExistsInSheets([sheet], 'uid-missing'), false);
   assert.equal(app.invoiceAlreadyExistsInSheets([sheet], ''), false);
 });
+
+test('detail migration groups rows by invoice issue month and skips duplicates', () => {
+  const app = loadInvoiceProcessor();
+  const headers = [
+    'Received At',
+    'Fecha',
+    'Proveedor',
+    'RUC Proveedor',
+    'Timbrado',
+    'Nro Factura',
+    'Currency',
+    'Exentas (Gs)',
+    'Gravado 5% (Gs)',
+    'Gravado 10% (Gs)',
+    'IVA Total (Gs)',
+    'Total (Gs)',
+    'Condici\u00F3n',
+    'PDF File Name',
+    'XML File Name',
+    'PDF Drive Link',
+    'XML Drive Link',
+    'Unique Id',
+    'Status',
+    'Archivo'
+  ];
+  const detailRows = [
+    ['2026-06-29T12:00:00', '2026-03-11T11:28:55', 'Proveedor A', '80000001-1', '100', '001-001-0000001', 'PYG', 100, 200, 300, 50, 600, 'Credito', 'Factura A.pdf', 'Factura A.xml', 'https://example.com/a.pdf', 'https://example.com/a.xml', 'uid-existing', 'Processed', 'Factura A.pdf'],
+    ['2026-06-29T12:00:00', '2026-04-02T09:00:00', 'Proveedor B', '80000002-2', '101', '001-001-0000002', 'PYG', 0, 0, 400, 40, 400, 'Contado', 'Factura B.pdf', 'Factura B.xml', 'https://example.com/b.pdf', 'https://example.com/b.xml', 'uid-new', 'Processed', 'Factura B.pdf'],
+    ['2026-06-29T12:00:00', 'fecha mala', 'Proveedor C', '80000003-3', '102', '001-001-0000003', 'PYG', 0, 0, 100, 10, 100, 'Contado', 'Factura C.pdf', 'Factura C.xml', 'https://example.com/c.pdf', 'https://example.com/c.xml', 'uid-bad-date', 'Processed', 'Factura C.pdf']
+  ];
+  const existingRowsBySheet = {
+    Marzo: [
+      [new Date(2026, 2, 11), 'Proveedor A', '80000001-1', '100', '001-001-0000001', 'PYG', 100, 200, 300, 50, 600, 'Credito', '', '', 'uid-existing']
+    ]
+  };
+
+  assert.equal(typeof app.buildMonthlyMigrationFromDetailRows, 'function');
+
+  const migration = app.buildMonthlyMigrationFromDetailRows(headers, detailRows, existingRowsBySheet);
+
+  assert.equal(migration.migrated, 1);
+  assert.equal(migration.duplicateSkipped, 1);
+  assert.equal(migration.invalidDateSkipped, 1);
+  assert.equal(migration.monthlyRowsBySheet.Marzo.length, 1);
+  assert.equal(migration.monthlyRowsBySheet.Abril.length, 1);
+  assert.equal(migration.monthlyRowsBySheet.Abril[0][0].getMonth(), 3);
+  assert.equal(migration.affectedSheetNames.Abril, true);
+});
+
+test('monthly migration audit reports detail ids missing from monthly sheets', () => {
+  const app = loadInvoiceProcessor();
+  const headers = ['Fecha', 'Proveedor', 'Unique Id'];
+  const detailRows = [
+    ['2026-03-11', 'Proveedor A', 'uid-a'],
+    ['2026-04-02', 'Proveedor B', 'uid-b']
+  ];
+  const monthlyRowsBySheet = {
+    Marzo: [
+      [new Date(2026, 2, 11), 'Proveedor A', '', '', '', '', 0, 0, 0, 0, 0, '', '', '', 'uid-a']
+    ],
+    Abril: [
+      [new Date(2026, 3, 2), 'Proveedor Extra', '', '', '', '', 0, 0, 0, 0, 0, '', '', '', 'uid-extra']
+    ]
+  };
+
+  assert.equal(typeof app.buildMonthlyMigrationAudit, 'function');
+
+  const audit = app.buildMonthlyMigrationAudit(headers, detailRows, monthlyRowsBySheet);
+
+  assert.equal(audit.detailRows, 2);
+  assert.equal(audit.monthlyRows, 2);
+  assert.equal(audit.detailUniqueIds, 2);
+  assert.equal(audit.monthlyUniqueIds, 2);
+  assert.equal(audit.matchedDetailUniqueIds, 1);
+  assert.deepEqual(Array.from(audit.missingFromMonthly), ['uid-b']);
+  assert.equal(audit.bySheet.Marzo.rows, 1);
+});

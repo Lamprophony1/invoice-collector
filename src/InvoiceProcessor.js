@@ -588,7 +588,7 @@ function objectFromHeaders(headers, row) {
 
 function buildMonthlyInvoiceRowFromDetailObject(detail) {
   return [
-    getDateOnlyForSheet(detail['Fecha']),
+    getDateOnlyForSheet(getDetailIssueDateValue(detail)),
     detail['Proveedor'],
     detail['RUC Proveedor'],
     detail['Timbrado'],
@@ -604,6 +604,10 @@ function buildMonthlyInvoiceRowFromDetailObject(detail) {
     buildHyperlinkFormula(detail['XML File Name'], detail['XML Drive Link']),
     detail['Unique Id']
   ];
+}
+
+function getDetailIssueDateValue(detail) {
+  return detail['Fecha Emision'] || detail['Fecha Emisi\u00F3n'] || detail['Fecha'];
 }
 
 function getOrCreateSheet(spreadsheet, sheetName) {
@@ -816,6 +820,208 @@ function appendInvoiceToMonthlySheet(spreadsheet, sheetName, row) {
   const rows = getMonthlyDetailRows(sheet);
   rows.push(row);
   writeMonthlySheet(sheet, rows);
+}
+
+function buildMonthlyMigrationFromDetailRows(headers, detailRows, existingRowsBySheet) {
+  const monthlyRowsBySheet = {};
+  const existingUniqueIds = {};
+  const affectedSheetNames = {};
+  const invalidDateRows = [];
+
+  Object.keys(existingRowsBySheet || {}).forEach(sheetName => {
+    monthlyRowsBySheet[sheetName] = existingRowsBySheet[sheetName].slice();
+    monthlyRowsBySheet[sheetName].forEach(row => {
+      const uniqueId = String(row[14] || '').trim();
+      if (uniqueId) {
+        existingUniqueIds[uniqueId] = true;
+      }
+    });
+  });
+
+  let migrated = 0;
+  let duplicateSkipped = 0;
+  let invalidDateSkipped = 0;
+
+  detailRows.forEach(row => {
+    const detail = objectFromHeaders(headers, row);
+    const uniqueId = String(detail['Unique Id'] || '').trim();
+
+    if (uniqueId && existingUniqueIds[uniqueId]) {
+      duplicateSkipped++;
+      return;
+    }
+
+    const date = getDateOnlyForSheet(getDetailIssueDateValue(detail));
+    if (!date) {
+      invalidDateSkipped++;
+      invalidDateRows.push(row);
+      return;
+    }
+
+    const sheetName = MONTH_SHEET_NAMES[date.getMonth()];
+    if (!monthlyRowsBySheet[sheetName]) {
+      monthlyRowsBySheet[sheetName] = [];
+    }
+
+    monthlyRowsBySheet[sheetName].push(buildMonthlyInvoiceRowFromDetailObject(detail));
+    if (uniqueId) {
+      existingUniqueIds[uniqueId] = true;
+    }
+
+    affectedSheetNames[sheetName] = true;
+    migrated++;
+  });
+
+  return {
+    monthlyRowsBySheet,
+    affectedSheetNames,
+    invalidDateRows,
+    migrated,
+    duplicateSkipped,
+    invalidDateSkipped
+  };
+}
+
+function collectDetailUniqueIds(headers, detailRows) {
+  const uniqueIds = {};
+
+  detailRows.forEach(row => {
+    const detail = objectFromHeaders(headers, row);
+    const uniqueId = String(detail['Unique Id'] || '').trim();
+    if (uniqueId) {
+      uniqueIds[uniqueId] = true;
+    }
+  });
+
+  return uniqueIds;
+}
+
+function buildMonthlyMigrationAudit(headers, detailRows, monthlyRowsBySheet) {
+  const detailUniqueIds = collectDetailUniqueIds(headers, detailRows);
+  const monthlyUniqueIds = {};
+  const bySheet = {};
+  let monthlyRows = 0;
+
+  Object.keys(monthlyRowsBySheet || {}).forEach(sheetName => {
+    const rows = monthlyRowsBySheet[sheetName] || [];
+    const uniqueIdsForSheet = {};
+
+    rows.forEach(row => {
+      const uniqueId = String(row[14] || '').trim();
+      if (uniqueId) {
+        monthlyUniqueIds[uniqueId] = true;
+        uniqueIdsForSheet[uniqueId] = true;
+      }
+    });
+
+    monthlyRows += rows.length;
+    bySheet[sheetName] = {
+      rows: rows.length,
+      uniqueIds: Object.keys(uniqueIdsForSheet).length
+    };
+  });
+
+  const missingFromMonthly = Object.keys(detailUniqueIds)
+    .filter(uniqueId => !monthlyUniqueIds[uniqueId])
+    .sort();
+  const extraInMonthly = Object.keys(monthlyUniqueIds)
+    .filter(uniqueId => !detailUniqueIds[uniqueId])
+    .sort();
+
+  return {
+    detailRows: detailRows.length,
+    monthlyRows,
+    detailUniqueIds: Object.keys(detailUniqueIds).length,
+    monthlyUniqueIds: Object.keys(monthlyUniqueIds).length,
+    matchedDetailUniqueIds: Object.keys(detailUniqueIds).length - missingFromMonthly.length,
+    missingFromMonthly,
+    extraInMonthly,
+    bySheet
+  };
+}
+
+function migrateDetalleToMonthlySheets() {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const detailSheet = spreadsheet.getSheetByName(DETAIL_SHEET_NAME);
+
+  if (!detailSheet) {
+    throw new Error('No se encontro la hoja ' + DETAIL_SHEET_NAME + '.');
+  }
+
+  const values = detailSheet.getDataRange().getValues();
+  if (values.length < 2) {
+    Logger.log('No hay filas para migrar desde ' + DETAIL_SHEET_NAME + '.');
+    return;
+  }
+
+  const headers = values[0];
+  const rows = values.slice(1).filter(row => row.some(value => value !== ''));
+  const existingRowsBySheet = {};
+
+  MONTH_SHEET_NAMES.forEach(sheetName => {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    if (sheet) {
+      existingRowsBySheet[sheetName] = getMonthlyDetailRows(sheet);
+    }
+  });
+
+  const migration = buildMonthlyMigrationFromDetailRows(headers, rows, existingRowsBySheet);
+
+  migration.invalidDateRows.forEach(row => {
+    Logger.log('Fila omitida por fecha invalida: ' + JSON.stringify(row));
+  });
+
+  Object.keys(migration.affectedSheetNames).forEach(sheetName => {
+    const sheet = getOrCreateSheet(spreadsheet, sheetName);
+    writeMonthlySheet(sheet, migration.monthlyRowsBySheet[sheetName]);
+  });
+
+  Logger.log('--- Migration Summary ---');
+  Logger.log('Rows read from Detalle: ' + rows.length);
+  Logger.log('Rows migrated: ' + migration.migrated);
+  Logger.log('Duplicates skipped: ' + migration.duplicateSkipped);
+  Logger.log('Invalid date skipped: ' + migration.invalidDateSkipped);
+}
+
+function auditDetalleToMonthlySheets() {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const detailSheet = spreadsheet.getSheetByName(DETAIL_SHEET_NAME);
+
+  if (!detailSheet) {
+    throw new Error('No se encontro la hoja ' + DETAIL_SHEET_NAME + '.');
+  }
+
+  const values = detailSheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const rows = values.slice(1).filter(row => row.some(value => value !== ''));
+  const monthlyRowsBySheet = {};
+
+  MONTH_SHEET_NAMES.forEach(sheetName => {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    monthlyRowsBySheet[sheetName] = sheet ? getMonthlyDetailRows(sheet) : [];
+  });
+
+  const audit = buildMonthlyMigrationAudit(headers, rows, monthlyRowsBySheet);
+
+  Logger.log('--- Monthly Migration Audit ---');
+  Logger.log('Rows read from Detalle: ' + audit.detailRows);
+  Logger.log('Monthly detail rows: ' + audit.monthlyRows);
+  Logger.log('Unique Ids in Detalle: ' + audit.detailUniqueIds);
+  Logger.log('Unique Ids in monthly sheets: ' + audit.monthlyUniqueIds);
+  Logger.log('Detalle IDs present in monthly sheets: ' + audit.matchedDetailUniqueIds);
+  Logger.log('Detalle IDs missing from monthly sheets: ' + audit.missingFromMonthly.length);
+  Logger.log('Monthly IDs not present in Detalle: ' + audit.extraInMonthly.length);
+
+  MONTH_SHEET_NAMES.forEach(sheetName => {
+    const sheetAudit = audit.bySheet[sheetName] || { rows: 0, uniqueIds: 0 };
+    if (sheetAudit.rows > 0) {
+      Logger.log(sheetName + ': rows=' + sheetAudit.rows + ', uniqueIds=' + sheetAudit.uniqueIds);
+    }
+  });
+
+  if (audit.missingFromMonthly.length > 0) {
+    Logger.log('Missing Unique Id sample: ' + audit.missingFromMonthly.slice(0, 20).join(', '));
+  }
 }
 
 function testAppendFirstInvoiceToSheetNoDuplicates() {
