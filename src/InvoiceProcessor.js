@@ -576,6 +576,13 @@ function buildMonthlyInvoiceRow(parsedData, pdfFileName, pdfUrl, xmlFileName, xm
   ];
 }
 
+function buildMonthlyProcessingTarget(parsedData, pdfFileName, pdfUrl, xmlFileName, xmlUrl) {
+  return {
+    sheetName: getMonthSheetNameFromIssueDate(parsedData.issueDate),
+    row: buildMonthlyInvoiceRow(parsedData, pdfFileName, pdfUrl, xmlFileName, xmlUrl)
+  };
+}
+
 function objectFromHeaders(headers, row) {
   const object = {};
 
@@ -1183,7 +1190,6 @@ function processPendingInvoiceEmails() {
   const threads = GmailApp.search(query, 0, 20);
 
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = spreadsheet.getSheetByName(SHEET_NAME);
 
   let processedCount = 0;
   let skippedDuplicates = 0;
@@ -1230,7 +1236,7 @@ function processPendingInvoiceEmails() {
         continue;
       }
 
-      if (invoiceAlreadyExists(sheet, parsedData.uniqueId)) {
+      if (invoiceAlreadyExistsInMonthlySheets(spreadsheet, parsedData.uniqueId)) {
         markThreadAsProcessed(thread);
         skippedDuplicates++;
         threadProcessed = true;
@@ -1243,30 +1249,15 @@ function processPendingInvoiceEmails() {
       const savedPdf = pdfAttachment ? saveFileIfNotExists(monthFolder, pdfAttachment) : null;
       const savedXml = saveFileIfNotExists(monthFolder, xmlAttachment);
 
-      const row = [
-        message.getDate(),
-        parsedData.issueDate,
-        parsedData.supplierName,
-        parsedData.supplierRuc,
-        parsedData.timbrado,
-        parsedData.invoiceNumber,
-        parsedData.currency,
-        normalizeAmount(parsedData.exemptAmount),
-        normalizeAmount(parsedData.taxed5Amount),
-        normalizeAmount(parsedData.taxed10Amount),
-        normalizeAmount(parsedData.vatTotal),
-        normalizeAmount(parsedData.grandTotal),
-        parsedData.condition,
+      const target = buildMonthlyProcessingTarget(
+        parsedData,
         savedPdf ? savedPdf.getName() : '',
-        savedXml.getName(),
         savedPdf ? savedPdf.getUrl() : '',
-        savedXml.getUrl(),
-        parsedData.uniqueId,
-        'Processed',
-        savedPdf ? savedPdf.getName() : savedXml.getName()
-      ];
+        savedXml.getName(),
+        savedXml.getUrl()
+      );
 
-      sheet.appendRow(row);
+      appendInvoiceToMonthlySheet(spreadsheet, target.sheetName, target.row);
       markThreadAsProcessed(thread);
 
       processedCount++;

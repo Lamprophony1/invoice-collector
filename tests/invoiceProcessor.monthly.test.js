@@ -72,6 +72,41 @@ test('monthly row builder returns accountant-friendly detail row', () => {
   assert.equal(row[14], '01800863631001001000020622026031112896089493');
 });
 
+test('monthly processing target returns target sheet and row for processor append', () => {
+  const app = loadInvoiceProcessor();
+  const parsedData = {
+    issueDate: '2026-04-02T09:30:00',
+    supplierName: 'Proveedor Mensual',
+    supplierRuc: '80000004-4',
+    timbrado: '18300000',
+    invoiceNumber: '001-001-0000004',
+    currency: 'PYG',
+    exemptAmount: '0',
+    taxed5Amount: '0',
+    taxed10Amount: '500',
+    vatTotal: '50',
+    grandTotal: '500',
+    condition: 'Contado',
+    uniqueId: 'uid-target'
+  };
+
+  assert.equal(typeof app.buildMonthlyProcessingTarget, 'function');
+
+  const target = app.buildMonthlyProcessingTarget(
+    parsedData,
+    'Factura.pdf',
+    'https://example.com/pdf',
+    'Factura.xml',
+    'https://example.com/xml'
+  );
+
+  assert.equal(target.sheetName, 'Abril');
+  assert.equal(target.row[0].getMonth(), 3);
+  assert.equal(target.row[1], 'Proveedor Mensual');
+  assert.equal(target.row[12], '=HYPERLINK("https://example.com/pdf","Factura.pdf")');
+  assert.equal(target.row[14], 'uid-target');
+});
+
 test('monthly summary builder aggregates totals by condition, currency, and supplier', () => {
   const app = loadInvoiceProcessor();
   const rows = [
