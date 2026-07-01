@@ -69,8 +69,9 @@ Registro contable estructurado en hojas mensuales.
 
 ## Estructura de registro en Sheets
 
-Archivo:
-`Resumen Facturas Electronicas 2026`
+Archivo por año:
+`Resumen Facturas Electronicas AAAA` (donde `AAAA` es el anio de emision)
+Ejemplo: `Resumen Facturas Electronicas 2026`
 
 La salida contable principal usa hojas mensuales:
 - Enero

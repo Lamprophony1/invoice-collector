@@ -2,14 +2,14 @@
 
 ## Objetivo
 
-Convertir `invoice-collector` en una automatizacion invisible que produzca una planilla anual comoda para la contadora. La contadora debe trabajar desde las hojas mensuales, no desde una hoja tecnica maestra.
+Convertir `invoice-collector` en una automatizacion invisible que produzca libros contables anuales, uno por año, comodos para la contadora. La contadora debe trabajar desde las hojas mensuales, no desde una hoja tecnica maestra.
 
 ## Direccion aprobada
 
 - La automatizacion sigue usando Gmail, Google Apps Script, Drive y Sheets.
 - Drive sigue siendo el archivo documental de XML/PDF por anio y mes.
 - Google Sheets pasa a ser la salida contable principal.
-- La planilla anual usa una pestana por mes: `Enero`, `Febrero`, `Marzo`, `Abril`, `Mayo`, `Junio`, `Julio`, `Agosto`, `Septiembre`, `Octubre`, `Noviembre`, `Diciembre`.
+- Existe un libro por año (por ejemplo `Resumen Facturas Electrónicas 2026`) y usa una pestaña por mes: `Enero`, `Febrero`, `Marzo`, `Abril`, `Mayo`, `Junio`, `Julio`, `Agosto`, `Septiembre`, `Octubre`, `Noviembre`, `Diciembre`.
 - Cada hoja mensual contiene el resumen del mes y el detalle de facturas de ese mes.
 - La hoja vieja `Detalle` se usa solo como fuente de migracion y respaldo temporal.
 - Despues de la migracion, el procesamiento nuevo escribe directamente en hojas mensuales.
@@ -80,8 +80,8 @@ Para cada correo pendiente:
 1. Detectar adjuntos XML/PDF.
 2. Parsear el XML.
 3. Guardar XML/PDF en Drive bajo carpetas por anio y mes.
-4. Determinar el mes destino usando la fecha de emision del XML.
-5. Crear o reutilizar la hoja mensual correspondiente.
+4. Determinar el año y mes destino usando la fecha de emision del XML.
+5. Crear o reutilizar el libro anual del año y la hoja mensual correspondiente.
 6. Verificar si el `Unique Id` ya existe en las hojas mensuales.
 7. Si no existe, agregar la factura a la hoja del mes.
 8. Regenerar o actualizar el resumen de ese mes.
@@ -96,8 +96,8 @@ Las filas existentes en `Detalle` deben migrarse a las hojas mensuales.
 Pasos:
 
 1. Leer todas las filas con datos de `Detalle`.
-2. Determinar el mes usando la fecha de emision (`Fecha`).
-3. Crear o reutilizar la hoja mensual correspondiente.
+2. Determinar el año y mes usando la fecha de emision (`Fecha`).
+3. Crear o reutilizar el libro anual del año y la hoja mensual correspondiente.
 4. Insertar cada factura en la tabla de detalle de su mes.
 5. Omitir cualquier fila cuyo `Unique Id` ya exista en hojas mensuales.
 6. Regenerar resumenes de todos los meses afectados.

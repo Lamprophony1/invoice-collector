@@ -104,21 +104,16 @@ Si la factura ya existe en la planilla, no se agrega una nueva fila.
 
 ---
 
-## 7. La automatización registra el resultado en una sola hoja principal
+## 7. La automatización registra por libros anuales y hojas mensuales
 
 ### Decisión
-Usar una hoja principal llamada `Detalle` dentro del archivo `Resumen Facturas Electrónicas 2026`.
+Usar un libro anual (por ejemplo `Resumen Facturas Electrónicas 2026`, `Resumen Facturas Electrónicas 2027`) y dentro de cada libro una pestaña mensual de `Enero` a `Diciembre`.
 
 ### Justificación
-Una hoja única facilita:
-- filtros
-- búsquedas
-- revisión de duplicados
-- consolidación mensual
-- futuras tablas dinámicas o resúmenes
+Una estructura por año evita mezclar periodos contables y mantiene el detalle mensual más organizado para la contadora.
 
 ### Consecuencia práctica
-No se crean hojas separadas por mes en la versión actual.
+`Detalle` queda como respaldo temporal de migración, y el registro contable principal queda distribuido por año y mes.
 
 ---
 

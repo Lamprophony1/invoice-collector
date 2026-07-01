@@ -21,9 +21,10 @@ Automatizar el procesamiento de facturas electronicas recibidas por Gmail:
 - Repo GitHub: `Lamprophony1/invoice-collector`
 - Carpeta Drive: `2- Contabilidad Rafael Garcia`
 - Folder ID: `1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy`
-- Spreadsheet: `Resumen Facturas Electronicas 2026`
-- Spreadsheet ID: `1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY`
-- Salida principal en Sheets: hojas mensuales `Enero` a `Diciembre`
+- Hoja por año en Sheets: `Resumen Facturas Electronicas AAAA` en la carpeta Drive (`AAAA` es el año de emision)
+- Spreadsheet de referencia base (2026): `Resumen Facturas Electronicas 2026`
+- Spreadsheet ID base: `1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY`
+- Salida principal en cada libro anual: hojas mensuales `Enero` a `Diciembre`
 - Hoja historica/respaldo temporal: `Detalle`
 - Label Gmail: `facturas/procesado`
 - Apps Script root local: `src/`
@@ -113,7 +114,7 @@ Decision operativa:
 
 ## Estado de salida contable
 
-- La salida principal de Sheets son hojas mensuales: `Enero`, `Febrero`, `Marzo`, `Abril`, `Mayo`, `Junio`, `Julio`, `Agosto`, `Septiembre`, `Octubre`, `Noviembre`, `Diciembre`.
+- La salida principal es un libro anual por año, con hojas mensuales: `Enero`, `Febrero`, `Marzo`, `Abril`, `Mayo`, `Junio`, `Julio`, `Agosto`, `Septiembre`, `Octubre`, `Noviembre`, `Diciembre`.
 - Cada hoja mensual tiene resumen arriba y detalle fila por fila abajo.
 - `Detalle` queda como respaldo temporal de migracion.
 - Las fechas en hojas mensuales se muestran como `dd/MM/yyyy`, sin hora.

@@ -107,6 +107,67 @@ test('monthly processing target returns target sheet and row for processor appen
   assert.equal(target.row[14], 'uid-target');
 });
 
+test('getInvoiceYear parses year from issue date', () => {
+  const app = loadInvoiceProcessor();
+
+  assert.equal(typeof app.getInvoiceYear, 'function');
+  assert.equal(app.getInvoiceYear('2026-03-11T11:28:55'), 2026);
+  assert.equal(app.getInvoiceYear('05/01/2026'), 2026);
+  assert.equal(app.getInvoiceYear('fecha mala'), null);
+});
+
+test('annual migration groups detail rows by year and month', () => {
+  const app = loadInvoiceProcessor();
+  const headers = [
+    'Received At',
+    'Fecha',
+    'Proveedor',
+    'RUC Proveedor',
+    'Timbrado',
+    'Nro Factura',
+    'Currency',
+    'Exentas (Gs)',
+    'Gravado 5% (Gs)',
+    'Gravado 10% (Gs)',
+    'IVA Total (Gs)',
+    'Total (Gs)',
+    'Condición',
+    'PDF File Name',
+    'XML File Name',
+    'PDF Drive Link',
+    'XML Drive Link',
+    'Unique Id',
+    'Status',
+    'Archivo'
+  ];
+  const detailRows = [
+    ['2025-06-01T00:00:00', '2025-03-11T11:28:55', 'Proveedor A', '80000001-1', '100', '001-001-0000001', 'PYG', 10, 20, 30, 5, 60, 'Credito', 'Factura A.pdf', 'Factura A.xml', 'https://example.com/a.pdf', 'https://example.com/a.xml', 'uid-2025', 'Processed', 'Factura A.xml'],
+    ['2026-06-01T00:00:00', '2026-03-12T09:00:00', 'Proveedor B', '80000002-2', '101', '001-001-0000002', 'PYG', 0, 0, 40, 4, 44, 'Contado', 'Factura B.pdf', 'Factura B.xml', 'https://example.com/b.pdf', 'https://example.com/b.xml', 'uid-2026', 'Processed', 'Factura B.xml']
+  ];
+  const existingRowsByYearAndSheet = {
+    2025: {
+      Marzo: [
+        [new Date(2025, 2, 11), 'Proveedor A', '80000001-1', '100', '001-001-0000000', 'PYG', 1, 2, 3, 0, 6, 'Credito', '', '', 'uid-existing-2025']
+      ]
+    },
+    2026: {
+      Marzo: [
+        [new Date(2026, 2, 1), 'Proveedor X', '80000009-9', '100', '001-001-0009999', 'PYG', 1, 1, 1, 1, 3, 'Contado', '', '', 'uid-existing-2026']
+      ]
+    }
+  };
+
+  const migration = app.buildAnnualMigrationFromDetailRows(headers, detailRows, existingRowsByYearAndSheet);
+
+  assert.equal(migration.annualRowsByYear['2025'].Marzo.length, 2);
+  assert.equal(migration.annualRowsByYear['2026'].Marzo.length, 2);
+  assert.equal(migration.affectedSheetNamesByYear['2025'].Marzo, true);
+  assert.equal(migration.affectedSheetNamesByYear['2026'].Marzo, true);
+  assert.equal(migration.migrated, 2);
+  assert.equal(migration.duplicateSkipped, 0);
+  assert.equal(migration.invalidDateSkipped, 0);
+});
+
 test('monthly summary builder aggregates totals by condition, currency, and supplier', () => {
   const app = loadInvoiceProcessor();
   const rows = [

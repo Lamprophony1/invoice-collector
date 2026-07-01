@@ -16,14 +16,25 @@ Folder ID:
 
 ### Google Sheets
 
-Archivo:
-`Resumen Facturas Electronicas 2026`
+Los libros anuales se guardan automÃ¡ticamente en la carpeta del aÃ±o correspondiente:
+
+```text
+2- Contabilidad Rafael Garcia/
+  2026/
+    Resumen Facturas Electronicas 2026
+  2025/
+    Resumen Facturas Electronicas 2025
+```
+
+Libros anuales:
+`Resumen Facturas Electronicas AAAA` (donde `AAAA` es el año de emision de la factura)
+Ejemplo: `Resumen Facturas Electronicas 2026`
 
 Spreadsheet ID:
 `1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY`
 
 Salida principal:
-hojas mensuales `Enero` a `Diciembre`
+hojas mensuales `Enero` a `Diciembre` dentro del libro anual correspondiente
 
 Respaldo temporal:
 `Detalle`
@@ -40,6 +51,8 @@ La configuracion base esperada en el codigo es:
 ```javascript
 const ROOT_FOLDER_ID = '1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy';
 const SPREADSHEET_ID = '1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY';
+const ANNUAL_SPREADSHEET_NAME_PREFIXES = ['Resumen Facturas Electronicas '];
+const ANNUAL_SPREADSHEET_IDS_BY_YEAR = { '2026': SPREADSHEET_ID };
 const DETAIL_SHEET_NAME = 'Detalle';
 const SHEET_NAME = DETAIL_SHEET_NAME;
 const PROCESSED_LABEL_NAME = 'facturas/procesado';
@@ -90,8 +103,8 @@ Las fechas se formatean como `dd/MM/yyyy`, sin hora.
 
 Funciones operativas relacionadas:
 
-- `migrateDetalleToMonthlySheets`: migra filas existentes desde `Detalle` a hojas mensuales.
-- `auditDetalleToMonthlySheets`: valida que los `Unique Ids` de `Detalle` existan en hojas mensuales.
+- `migrateDetalleToMonthlySheets`: migra filas existentes desde `Detalle` a los libros anuales y sus hojas mensuales.
+- `auditDetalleToMonthlySheets`: valida que los `Unique Ids` de `Detalle` existan en los libros anuales y hojas mensuales.
 
 ## Busqueda de correos
 
@@ -105,7 +118,7 @@ El codigo tambien mantiene variantes con acentos en la query.
 
 ## Estructura esperada en Drive
 
-Las facturas se guardan bajo la carpeta raiz, organizadas por anio y mes segun la fecha de emision del XML.
+Las facturas se guardan bajo la carpeta raiz, organizadas por año y mes según la fecha de emisión del XML.
 
 Ejemplo:
 
@@ -179,9 +192,11 @@ Configuracion reportada en el handoff del 2026-06-29:
 
 Estado actual:
 
-- El handoff reporta que el trigger fue creado correctamente.
-- No crear otro trigger sin verificar primero en Apps Script.
-- El trigger debe ejecutar la version que registra en hojas mensuales.
+Estado real del proyecto (verificable desde Script Editor):
+
+- Ejecutá `testListProjectTriggers()` para confirmar qué triggers están activos.
+- Ejecutá `ensureHourlyInvoiceTrigger()` para crear el trigger horario si no existe.
+- El trigger objetivo para automatización es `processPendingInvoiceEmails`.
 
 ## Estado del setup
 

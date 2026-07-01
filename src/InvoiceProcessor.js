@@ -1,5 +1,13 @@
 const ROOT_FOLDER_ID = '1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy';
 const SPREADSHEET_ID = '1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY';
+const ANNUAL_SPREADSHEET_NAME_PREFIXES = [
+  'Resumen Facturas Electronicas ',
+  'Resumen Facturas ElectrÃƒÂ³nicas '
+];
+const ANNUAL_SPREADSHEET_IDS_BY_YEAR = {
+  '2026': SPREADSHEET_ID
+};
+const ANNUAL_SPREADSHEET_CACHE = {};
 const DETAIL_SHEET_NAME = 'Detalle';
 const SHEET_NAME = DETAIL_SHEET_NAME;
 const PROCESSED_LABEL_NAME = 'facturas/procesado';
@@ -52,7 +60,7 @@ function testConnections() {
   Logger.log('Sheet name: ' + sheet.getName());
 }
 function testInvoiceEmailSearch() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"documento electrónico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"documento electrÃƒÂ³nico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   Logger.log('Threads found: ' + threads.length);
@@ -69,7 +77,7 @@ function testInvoiceEmailSearch() {
 }
 
 function testInvoiceAttachments() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 5);
 
   Logger.log('Threads found: ' + threads.length);
@@ -95,7 +103,7 @@ function testInvoiceAttachments() {
 }
 
 function testReadFirstXml() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -121,7 +129,7 @@ function testReadFirstXml() {
 }
 
 function testParseFirstXml() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -144,7 +152,7 @@ function testParseFirstXml() {
 
         const de = root.getChild('DE', ns);
         if (!de) {
-          throw new Error('No se encontró el nodo DE en el XML.');
+          throw new Error('No se encontrÃƒÂ³ el nodo DE en el XML.');
         }
 
         const data = {
@@ -211,6 +219,16 @@ function testGetOrCreateMonthFolder() {
   Logger.log('Month folder id: ' + monthFolder.getId());
 }
 
+function getOrCreateYearFolder(year) {
+  const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  const yearText = String(year || '').trim();
+  if (!yearText) {
+    return rootFolder;
+  }
+
+  return getOrCreateChildFolder(rootFolder, yearText);
+}
+
 function getOrCreateMonthFolder(issueDateString) {
   const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
   const issueDate = new Date(issueDateString);
@@ -233,7 +251,7 @@ function getOrCreateMonthFolder(issueDateString) {
     '12 - Diciembre'
   ];
 
-  const yearFolder = getOrCreateChildFolder(rootFolder, String(year));
+  const yearFolder = getOrCreateYearFolder(String(year));
   const monthFolder = getOrCreateChildFolder(yearFolder, monthNames[month]);
 
   return monthFolder;
@@ -249,7 +267,7 @@ function getOrCreateChildFolder(parentFolder, folderName) {
 }
 
 function testSaveFirstInvoiceFiles() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -275,7 +293,7 @@ function testSaveFirstInvoiceFiles() {
           const de = root.getChild('DE', ns);
 
           if (!de) {
-            throw new Error('No se encontró el nodo DE en el XML.');
+            throw new Error('No se encontrÃƒÂ³ el nodo DE en el XML.');
           }
 
           issueDate = getNestedText(de, ['gDatGralOpe', 'dFeEmiDE'], ns);
@@ -316,7 +334,7 @@ function saveFileIfNotExists(folder, attachment) {
 }
 
 function testAppendFirstInvoiceToSheet() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -398,7 +416,7 @@ function parseInvoiceXml(attachment) {
 
   let de = null;
 
-  // Caso 1: raíz directa DE
+  // Caso 1: raÃƒÂ­z directa DE
   if (root.getName() === 'DE') {
     de = root;
   }
@@ -407,7 +425,7 @@ function parseInvoiceXml(attachment) {
   else if (root.getName() === 'rLoteDE') {
     const rde = root.getChild('rDE', sifenNs);
     if (!rde) {
-      throw new Error('No se encontró el nodo rDE dentro de rLoteDE.');
+      throw new Error('No se encontrÃƒÂ³ el nodo rDE dentro de rLoteDE.');
     }
 
     de = rde.getName() === 'DE' ? rde : rde.getChild('DE', sifenNs);
@@ -417,39 +435,39 @@ function parseInvoiceXml(attachment) {
   else if (root.getName() === 'Envelope') {
     const body = root.getChild('Body', soapNs);
     if (!body) {
-      throw new Error('No se encontró el nodo Body dentro de Envelope.');
+      throw new Error('No se encontrÃƒÂ³ el nodo Body dentro de Envelope.');
     }
 
     const rEnviDe = body.getChild('rEnviDe', sifenNs);
     if (!rEnviDe) {
-      throw new Error('No se encontró el nodo rEnviDe dentro de Body.');
+      throw new Error('No se encontrÃƒÂ³ el nodo rEnviDe dentro de Body.');
     }
 
     const xDE = rEnviDe.getChild('xDE', sifenNs);
     if (!xDE) {
-      throw new Error('No se encontró el nodo xDE dentro de rEnviDe.');
+      throw new Error('No se encontrÃƒÂ³ el nodo xDE dentro de rEnviDe.');
     }
 
     const rde = xDE.getChild('rDE', sifenNs);
     if (!rde) {
-      throw new Error('No se encontró el nodo rDE dentro de xDE.');
+      throw new Error('No se encontrÃƒÂ³ el nodo rDE dentro de xDE.');
     }
 
     de = rde.getChild('DE', sifenNs);
   }
 
-  // Caso 4: raíz rDE -> DE
+  // Caso 4: raÃƒÂ­z rDE -> DE
   else if (root.getName() === 'rDE') {
     de = root.getChild('DE', sifenNs);
   }
 
-  // Caso genérico
+  // Caso genÃƒÂ©rico
   if (!de) {
     de = root.getChild('DE', sifenNs);
   }
 
   if (!de) {
-    throw new Error('No se encontró el nodo DE en el XML.');
+    throw new Error('No se encontrÃƒÂ³ el nodo DE en el XML.');
   }
 
   const data = {
@@ -534,6 +552,259 @@ function getMonthSheetNameFromIssueDate(issueDateValue) {
   return MONTH_SHEET_NAMES[date.getMonth()];
 }
 
+function getInvoiceYear(issueDateValue) {
+  const date = parseDateValue(issueDateValue);
+  if (!date) {
+    return null;
+  }
+
+  return date.getFullYear();
+}
+
+function getAnnualSpreadsheetNameCandidates(year) {
+  const yearText = String(year || '').trim();
+  if (!yearText) {
+    return [];
+  }
+
+  return ANNUAL_SPREADSHEET_NAME_PREFIXES.map(prefix => `${prefix}${yearText}`);
+}
+
+function findAnnualSpreadsheetInFolder(folder, spreadsheetName, normalizedTarget) {
+  const filesByName = folder.getFilesByName(spreadsheetName);
+
+  while (filesByName.hasNext()) {
+    const file = filesByName.next();
+    if (file.getMimeType() === MimeType.GOOGLE_SHEETS) {
+      return SpreadsheetApp.openById(file.getId());
+    }
+  }
+
+  const allFiles = folder.getFiles();
+  while (allFiles.hasNext()) {
+    const file = allFiles.next();
+    if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+      continue;
+    }
+
+    if (normalizeSpreadsheetName(file.getName()) === normalizedTarget) {
+      return SpreadsheetApp.openById(file.getId());
+    }
+  }
+
+  return null;
+}
+
+function findAnnualSpreadsheetByNameFromRootFolder(spreadsheetName, year) {
+  const normalizedTarget = normalizeSpreadsheetName(spreadsheetName);
+  const yearText = String(year || '').trim();
+
+  if (yearText) {
+    const yearFolder = getOrCreateYearFolder(yearText);
+    const foundInYear = findAnnualSpreadsheetInFolder(yearFolder, spreadsheetName, normalizedTarget);
+    if (foundInYear) {
+      return foundInYear;
+    }
+  }
+
+  const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  const foundInRoot = findAnnualSpreadsheetInFolder(rootFolder, spreadsheetName, normalizedTarget);
+  if (foundInRoot) {
+    return foundInRoot;
+  }
+  return null;
+}
+
+function ensureAnnualSpreadsheetInYearFolder(spreadsheet, year) {
+  const spreadsheetId = spreadsheet && spreadsheet.getId ? spreadsheet.getId() : '';
+  const yearText = String(year || '').trim();
+  if (!spreadsheetId || !yearText) {
+    return;
+  }
+
+  try {
+    const spreadsheetFile = DriveApp.getFileById(spreadsheetId);
+    const yearFolder = getOrCreateYearFolder(yearText);
+    const parentIterator = spreadsheetFile.getParents();
+    const parentIds = [];
+
+    while (parentIterator.hasNext()) {
+      parentIds.push(parentIterator.next().getId());
+    }
+
+    const alreadyInYearFolder = parentIds.includes(yearFolder.getId());
+    if (!alreadyInYearFolder) {
+      yearFolder.addFile(spreadsheetFile);
+    }
+
+    parentIds.forEach(parentId => {
+      if (parentId === yearFolder.getId()) {
+        return;
+      }
+
+      try {
+        DriveApp.getFolderById(parentId).removeFile(spreadsheetFile);
+      } catch (error) {
+        Logger.log('No se pudo quitar parent al mover libro anual: ' + error.message);
+      }
+    });
+
+    Logger.log(
+      'Resumen anual ubicado en carpeta del ano: ' + yearText + ' | libro=' + spreadsheet.getName()
+    );
+  } catch (error) {
+    Logger.log(
+      'No se pudo ubicar el libro anual en su carpeta de ano: ' + yearText + ' | ' + error.message
+    );
+  }
+}
+
+function migrateAnnualSpreadsheetsToYearFolders() {
+  const rootFolder = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  const files = rootFolder.getFiles();
+  let totalScanned = 0;
+  let totalMoved = 0;
+  let totalSkipped = 0;
+  const annualSheetNamePattern = /^resumen facturas electronicas\s+(\d{4})(?:\s|$)/i;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+      continue;
+    }
+
+    const name = file.getName();
+    const normalizedName = normalizeSpreadsheetName(name);
+
+    totalScanned++;
+
+    const yearMatch = normalizedName.match(annualSheetNamePattern);
+    if (!yearMatch) {
+      continue;
+    }
+
+    const yearText = yearMatch[1];
+    const yearFolder = getOrCreateYearFolder(yearText);
+    const parentIterator = file.getParents();
+    const parentIds = [];
+
+    while (parentIterator.hasNext()) {
+      parentIds.push(parentIterator.next().getId());
+    }
+
+    if (parentIds.includes(yearFolder.getId())) {
+      const nonYearParents = parentIds.filter(parentId => parentId !== yearFolder.getId());
+      if (nonYearParents.length === 0) {
+        totalSkipped++;
+        continue;
+      }
+    }
+
+    if (!parentIds.includes(yearFolder.getId())) {
+      yearFolder.addFile(file);
+    }
+
+    parentIds.forEach(parentId => {
+      if (parentId === yearFolder.getId()) {
+        return;
+      }
+
+      try {
+        DriveApp.getFolderById(parentId).removeFile(file);
+      } catch (error) {
+        Logger.log('No se pudo quitar parent al migrar libro anual: ' + file.getName() + ' | ' + error.message);
+      }
+    });
+
+    totalMoved++;
+    Logger.log('Libro anual movido a carpeta anual: ' + file.getName() + ' -> ' + yearText);
+  }
+
+  Logger.log('--- Annual Spreadsheet Folder Migration ---');
+  Logger.log('Archivos escaneados en raiz del proyecto: ' + totalScanned);
+  Logger.log('Libros movidos: ' + totalMoved);
+  Logger.log('Libros ya en carpeta de ano: ' + totalSkipped);
+}
+function normalizeSpreadsheetName(name) {
+  return String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function getOrCreateAnnualSpreadsheetForYear(year, cache) {
+  const yearText = String(year || '').trim();
+  if (!yearText) {
+    return null;
+  }
+
+  const targetCache = cache || ANNUAL_SPREADSHEET_CACHE;
+  if (targetCache[yearText]) {
+    return targetCache[yearText];
+  }
+
+  const knownSpreadsheetId = ANNUAL_SPREADSHEET_IDS_BY_YEAR[yearText];
+  if (knownSpreadsheetId) {
+    try {
+      const spreadsheet = SpreadsheetApp.openById(knownSpreadsheetId);
+      ensureAnnualSpreadsheetInYearFolder(spreadsheet, yearText);
+      targetCache[yearText] = spreadsheet;
+      return spreadsheet;
+    } catch (error) {
+      Logger.log('No se pudo abrir el spreadsheet asociado al ano ' + yearText + ': ' + error.message);
+    }
+  }
+
+  const candidateNames = getAnnualSpreadsheetNameCandidates(yearText);
+  for (const candidateName of candidateNames) {
+    const spreadsheet = findAnnualSpreadsheetByNameFromRootFolder(candidateName, yearText);
+    if (spreadsheet) {
+      ensureAnnualSpreadsheetInYearFolder(spreadsheet, yearText);
+      targetCache[yearText] = spreadsheet;
+      return spreadsheet;
+    }
+  }
+
+  const spreadsheetName = candidateNames[0] || ('Resumen Facturas Electronicas ' + yearText);
+  const spreadsheet = SpreadsheetApp.create(spreadsheetName);
+  const spreadsheetFile = DriveApp.getFileById(spreadsheet.getId());
+  const yearFolder = getOrCreateYearFolder(yearText);
+  yearFolder.addFile(spreadsheetFile);
+  targetCache[yearText] = spreadsheet;
+
+  return spreadsheet;
+}
+
+function getExistingAnnualSpreadsheetForYear(year) {
+  const yearText = String(year || '').trim();
+  if (!yearText) {
+    return null;
+  }
+
+  const knownSpreadsheetId = ANNUAL_SPREADSHEET_IDS_BY_YEAR[yearText];
+  if (knownSpreadsheetId) {
+    try {
+      const spreadsheet = SpreadsheetApp.openById(knownSpreadsheetId);
+      ensureAnnualSpreadsheetInYearFolder(spreadsheet, yearText);
+      return spreadsheet;
+    } catch (error) {
+      Logger.log('No se pudo abrir el spreadsheet conocido para ano ' + yearText + ': ' + error.message);
+    }
+  }
+
+  const candidateNames = getAnnualSpreadsheetNameCandidates(yearText);
+  for (const candidateName of candidateNames) {
+    const spreadsheet = findAnnualSpreadsheetByNameFromRootFolder(candidateName, yearText);
+    if (spreadsheet) {
+      ensureAnnualSpreadsheetInYearFolder(spreadsheet, yearText);
+      return spreadsheet;
+    }
+  }
+
+  return null;
+}
+
 function escapeFormulaText(value) {
   return String(value || '').replace(/"/g, '""');
 }
@@ -577,8 +848,12 @@ function buildMonthlyInvoiceRow(parsedData, pdfFileName, pdfUrl, xmlFileName, xm
 }
 
 function buildMonthlyProcessingTarget(parsedData, pdfFileName, pdfUrl, xmlFileName, xmlUrl) {
+  const issueYear = getInvoiceYear(parsedData.issueDate);
+
   return {
+    year: issueYear,
     sheetName: getMonthSheetNameFromIssueDate(parsedData.issueDate),
+    spreadsheetName: getAnnualSpreadsheetNameCandidates(issueYear)[0] || '',
     row: buildMonthlyInvoiceRow(parsedData, pdfFileName, pdfUrl, xmlFileName, xmlUrl)
   };
 }
@@ -903,6 +1178,83 @@ function collectDetailUniqueIds(headers, detailRows) {
   return uniqueIds;
 }
 
+function buildAnnualMigrationFromDetailRows(headers, detailRows, existingRowsByYearAndSheet) {
+  const annualRowsByYear = {};
+  const existingUniqueIdsByYear = {};
+  const affectedSheetNamesByYear = {};
+  const invalidDateRows = [];
+
+  Object.keys(existingRowsByYearAndSheet || {}).forEach(year => {
+    annualRowsByYear[year] = {};
+    existingUniqueIdsByYear[year] = {};
+
+    const bySheet = existingRowsByYearAndSheet[year] || {};
+    Object.keys(bySheet).forEach(sheetName => {
+      annualRowsByYear[year][sheetName] = bySheet[sheetName].slice();
+      bySheet[sheetName].forEach(row => {
+        const uniqueId = String(row[14] || '').trim();
+        if (uniqueId) {
+          existingUniqueIdsByYear[year][uniqueId] = true;
+        }
+      });
+    });
+  });
+
+  let migrated = 0;
+  let duplicateSkipped = 0;
+  let invalidDateSkipped = 0;
+
+  detailRows.forEach(row => {
+    const detail = objectFromHeaders(headers, row);
+    const uniqueId = String(detail['Unique Id'] || '').trim();
+    const issueDate = getDateOnlyForSheet(getDetailIssueDateValue(detail));
+
+    if (!issueDate) {
+      invalidDateSkipped++;
+      invalidDateRows.push(row);
+      return;
+    }
+
+    const year = String(issueDate.getFullYear());
+    const sheetName = MONTH_SHEET_NAMES[issueDate.getMonth()];
+
+    if (!annualRowsByYear[year]) {
+      annualRowsByYear[year] = {};
+      existingUniqueIdsByYear[year] = {};
+    }
+
+    if (!annualRowsByYear[year][sheetName]) {
+      annualRowsByYear[year][sheetName] = [];
+    }
+
+    if (uniqueId && existingUniqueIdsByYear[year][uniqueId]) {
+      duplicateSkipped++;
+      return;
+    }
+
+    annualRowsByYear[year][sheetName].push(buildMonthlyInvoiceRowFromDetailObject(detail));
+    if (uniqueId) {
+      existingUniqueIdsByYear[year][uniqueId] = true;
+    }
+
+    if (!affectedSheetNamesByYear[year]) {
+      affectedSheetNamesByYear[year] = {};
+    }
+
+    affectedSheetNamesByYear[year][sheetName] = true;
+    migrated++;
+  });
+
+  return {
+    annualRowsByYear,
+    affectedSheetNamesByYear,
+    invalidDateRows,
+    migrated,
+    duplicateSkipped,
+    invalidDateSkipped
+  };
+}
+
 function buildMonthlyMigrationAudit(headers, detailRows, monthlyRowsBySheet) {
   const detailUniqueIds = collectDetailUniqueIds(headers, detailRows);
   const monthlyUniqueIds = {};
@@ -947,9 +1299,68 @@ function buildMonthlyMigrationAudit(headers, detailRows, monthlyRowsBySheet) {
   };
 }
 
+function buildAnnualMigrationAudit(headers, detailRows, annualRowsByYear) {
+  const detailUniqueIds = collectDetailUniqueIds(headers, detailRows);
+  const annualUniqueIdsByYear = {};
+  const annualRowsUniqueIds = {};
+  const byYear = {};
+
+  let annualRows = 0;
+  Object.keys(annualRowsByYear || {}).forEach(year => {
+    annualUniqueIdsByYear[year] = {};
+    const rowsBySheet = annualRowsByYear[year] || {};
+    const yearSheets = {};
+    let byYearRows = 0;
+
+    Object.keys(rowsBySheet).forEach(sheetName => {
+      const rows = rowsBySheet[sheetName] || [];
+      const uniqueIdsForSheet = {};
+      rows.forEach(row => {
+        const uniqueId = String(row[14] || '').trim();
+        if (uniqueId) {
+          annualRowsUniqueIds[uniqueId] = true;
+          annualUniqueIdsByYear[year][uniqueId] = true;
+          uniqueIdsForSheet[uniqueId] = true;
+        }
+      });
+
+      byYearRows += rows.length;
+      yearSheets[sheetName] = {
+        rows: rows.length,
+        uniqueIds: Object.keys(uniqueIdsForSheet).length
+      };
+    });
+
+    annualRows += byYearRows;
+    byYear[year] = {
+      rows: byYearRows,
+      uniqueIds: Object.keys(annualUniqueIdsByYear[year]).length,
+      bySheet: yearSheets
+    };
+  });
+
+  const missingFromAnnual = Object.keys(detailUniqueIds)
+    .filter(uniqueId => !annualRowsUniqueIds[uniqueId])
+    .sort();
+  const extraInAnnual = Object.keys(annualRowsUniqueIds)
+    .filter(uniqueId => !detailUniqueIds[uniqueId])
+    .sort();
+
+  return {
+    detailRows: detailRows.length,
+    annualRows,
+    detailUniqueIds: Object.keys(detailUniqueIds).length,
+    annualUniqueIds: Object.keys(annualRowsUniqueIds).length,
+    matchedDetailUniqueIds: Object.keys(detailUniqueIds).length - missingFromAnnual.length,
+    missingFromAnnual,
+    extraInAnnual,
+    byYear
+  };
+}
+
 function migrateDetalleToMonthlySheets() {
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const detailSheet = spreadsheet.getSheetByName(DETAIL_SHEET_NAME);
+  const detailSpreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const detailSheet = detailSpreadsheet.getSheetByName(DETAIL_SHEET_NAME);
 
   if (!detailSheet) {
     throw new Error('No se encontro la hoja ' + DETAIL_SHEET_NAME + '.');
@@ -963,24 +1374,48 @@ function migrateDetalleToMonthlySheets() {
 
   const headers = values[0];
   const rows = values.slice(1).filter(row => row.some(value => value !== ''));
+  const yearsInDetail = {};
   const existingRowsBySheet = {};
 
-  MONTH_SHEET_NAMES.forEach(sheetName => {
-    const sheet = spreadsheet.getSheetByName(sheetName);
-    if (sheet) {
-      existingRowsBySheet[sheetName] = getMonthlyDetailRows(sheet);
+  rows.forEach(row => {
+    const detail = objectFromHeaders(headers, row);
+    const issueDate = getDateOnlyForSheet(getDetailIssueDateValue(detail));
+    if (!issueDate) {
+      return;
     }
+
+    yearsInDetail[String(issueDate.getFullYear())] = true;
   });
 
-  const migration = buildMonthlyMigrationFromDetailRows(headers, rows, existingRowsBySheet);
+  const years = Object.keys(yearsInDetail).sort();
+  const annualSpreadsheetCache = {};
+
+  years.forEach(year => {
+    const spreadsheet = getOrCreateAnnualSpreadsheetForYear(year, annualSpreadsheetCache);
+    const existingRowsByMonth = {};
+    MONTH_SHEET_NAMES.forEach(sheetName => {
+      const sheet = spreadsheet.getSheetByName(sheetName);
+      if (sheet) {
+        existingRowsByMonth[sheetName] = getMonthlyDetailRows(sheet);
+      }
+    });
+
+    existingRowsBySheet[year] = existingRowsByMonth;
+  });
+
+  const migration = buildAnnualMigrationFromDetailRows(headers, rows, existingRowsBySheet);
 
   migration.invalidDateRows.forEach(row => {
     Logger.log('Fila omitida por fecha invalida: ' + JSON.stringify(row));
   });
 
-  Object.keys(migration.affectedSheetNames).forEach(sheetName => {
-    const sheet = getOrCreateSheet(spreadsheet, sheetName);
-    writeMonthlySheet(sheet, migration.monthlyRowsBySheet[sheetName]);
+  Object.keys(migration.affectedSheetNamesByYear).forEach(year => {
+    const sheetNames = migration.affectedSheetNamesByYear[year] || {};
+    const spreadsheet = getOrCreateAnnualSpreadsheetForYear(year, annualSpreadsheetCache);
+    Object.keys(sheetNames).forEach(sheetName => {
+      const sheet = getOrCreateSheet(spreadsheet, sheetName);
+      writeMonthlySheet(sheet, migration.annualRowsByYear[year][sheetName]);
+    });
   });
 
   Logger.log('--- Migration Summary ---');
@@ -990,9 +1425,96 @@ function migrateDetalleToMonthlySheets() {
   Logger.log('Invalid date skipped: ' + migration.invalidDateSkipped);
 }
 
+function migrateLegacyMixedMonthlySheetsByYearLegacy() {
+  const legacySpreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const cachedAnnualSpreadsheets = {};
+  const rowsByYearAndSheet = {};
+  const movedSampleRows = {};
+  let consideredRows = 0;
+  let movedRows = 0;
+
+  MONTH_SHEET_NAMES.forEach(sheetName => {
+    const sheet = legacySpreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      return;
+    }
+
+    const rows = getMonthlyDetailRows(sheet);
+    rows.forEach(row => {
+      const issueDate = getDateOnlyForSheet(row[0]);
+      if (!issueDate) {
+        return;
+      }
+
+      const year = String(issueDate.getFullYear());
+      const targetSheetName = MONTH_SHEET_NAMES[issueDate.getMonth()];
+
+      if (!rowsByYearAndSheet[year]) {
+        rowsByYearAndSheet[year] = {};
+      }
+      if (!rowsByYearAndSheet[year][targetSheetName]) {
+        rowsByYearAndSheet[year][targetSheetName] = [];
+      }
+
+      rowsByYearAndSheet[year][targetSheetName].push(row);
+      consideredRows++;
+
+      if (!movedSampleRows[year]) {
+        movedSampleRows[year] = row[14] || '';
+      }
+    });
+  });
+
+  Object.keys(rowsByYearAndSheet)
+    .sort()
+    .forEach(year => {
+      const spreadsheet = getOrCreateAnnualSpreadsheetForYear(year, cachedAnnualSpreadsheets);
+      if (!spreadsheet) {
+        Logger.log('No se pudo resolver el spreadsheet anual para year=' + year + ' durante la reparaciÃƒÂ³n por aÃƒÂ±o.');
+        return;
+      }
+
+      const bySheet = rowsByYearAndSheet[year];
+      Object.keys(bySheet).forEach(monthSheetName => {
+        const existingRows = getMonthlyDetailRows(spreadsheet.getSheetByName(monthSheetName) || getOrCreateSheet(spreadsheet, monthSheetName));
+        const existingIds = {};
+        existingRows.forEach(row => {
+          const uniqueId = String(row[14] || '').trim();
+          if (uniqueId) {
+            existingIds[uniqueId] = true;
+          }
+        });
+
+        const sourceRows = bySheet[monthSheetName];
+        const mergedRows = existingRows.slice();
+        sourceRows.forEach(row => {
+          const uniqueId = String(row[14] || '').trim();
+          if (uniqueId && !existingIds[uniqueId]) {
+            mergedRows.push(row);
+            existingIds[uniqueId] = true;
+            movedRows++;
+          }
+        });
+
+        writeMonthlySheet(spreadsheet.getSheetByName(monthSheetName) || getOrCreateSheet(spreadsheet, monthSheetName), mergedRows);
+      });
+    });
+
+  Object.keys(rowsByYearAndSheet)
+    .sort()
+    .forEach(year => {
+      Logger.log('AÃƒÂ±o ' + year + ': rows candidatas en legacy = ' + Object.keys(rowsByYearAndSheet[year]).reduce((total, monthName) => total + rowsByYearAndSheet[year][monthName].length, 0) + ', ejemplo uniqueId=' + (movedSampleRows[year] || ''));
+    });
+
+  Logger.log('--- Legacy split summary ---');
+  Logger.log('Legacy rows leÃƒÂ­das: ' + consideredRows);
+  Logger.log('Rows agregadas a libros anuales: ' + movedRows);
+  Logger.log('AÃƒÂ±os detectados en legacy: ' + Object.keys(rowsByYearAndSheet).sort().join(', '));
+}
+
 function auditDetalleToMonthlySheets() {
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const detailSheet = spreadsheet.getSheetByName(DETAIL_SHEET_NAME);
+  const detailSpreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const detailSheet = detailSpreadsheet.getSheetByName(DETAIL_SHEET_NAME);
 
   if (!detailSheet) {
     throw new Error('No se encontro la hoja ' + DETAIL_SHEET_NAME + '.');
@@ -1001,38 +1523,66 @@ function auditDetalleToMonthlySheets() {
   const values = detailSheet.getDataRange().getValues();
   const headers = values[0] || [];
   const rows = values.slice(1).filter(row => row.some(value => value !== ''));
-  const monthlyRowsBySheet = {};
-
-  MONTH_SHEET_NAMES.forEach(sheetName => {
-    const sheet = spreadsheet.getSheetByName(sheetName);
-    monthlyRowsBySheet[sheetName] = sheet ? getMonthlyDetailRows(sheet) : [];
-  });
-
-  const audit = buildMonthlyMigrationAudit(headers, rows, monthlyRowsBySheet);
-
-  Logger.log('--- Monthly Migration Audit ---');
-  Logger.log('Rows read from Detalle: ' + audit.detailRows);
-  Logger.log('Monthly detail rows: ' + audit.monthlyRows);
-  Logger.log('Unique Ids in Detalle: ' + audit.detailUniqueIds);
-  Logger.log('Unique Ids in monthly sheets: ' + audit.monthlyUniqueIds);
-  Logger.log('Detalle IDs present in monthly sheets: ' + audit.matchedDetailUniqueIds);
-  Logger.log('Detalle IDs missing from monthly sheets: ' + audit.missingFromMonthly.length);
-  Logger.log('Monthly IDs not present in Detalle: ' + audit.extraInMonthly.length);
-
-  MONTH_SHEET_NAMES.forEach(sheetName => {
-    const sheetAudit = audit.bySheet[sheetName] || { rows: 0, uniqueIds: 0 };
-    if (sheetAudit.rows > 0) {
-      Logger.log(sheetName + ': rows=' + sheetAudit.rows + ', uniqueIds=' + sheetAudit.uniqueIds);
+  const annualRowsByYear = {};
+  const yearsInDetalle = {};
+  rows.forEach(row => {
+    const detail = objectFromHeaders(headers, row);
+    const issueDate = getDateOnlyForSheet(getDetailIssueDateValue(detail));
+    if (issueDate) {
+      yearsInDetalle[String(issueDate.getFullYear())] = true;
     }
   });
 
-  if (audit.missingFromMonthly.length > 0) {
-    Logger.log('Missing Unique Id sample: ' + audit.missingFromMonthly.slice(0, 20).join(', '));
+  const years = Object.keys(yearsInDetalle).sort();
+
+  years.forEach(year => {
+    const spreadsheet = getExistingAnnualSpreadsheetForYear(year);
+    if (!spreadsheet) {
+      return;
+    }
+
+    const rowsBySheet = {};
+    MONTH_SHEET_NAMES.forEach(sheetName => {
+      const sheet = spreadsheet.getSheetByName(sheetName);
+      rowsBySheet[sheetName] = sheet ? getMonthlyDetailRows(sheet) : [];
+    });
+
+    annualRowsByYear[year] = rowsBySheet;
+  });
+
+  const audit = buildAnnualMigrationAudit(headers, rows, annualRowsByYear);
+
+  Logger.log('--- Monthly Migration Audit ---');
+  Logger.log('Rows read from Detalle: ' + audit.detailRows);
+  Logger.log('Annual detail rows: ' + audit.annualRows);
+  Logger.log('Unique Ids in Detalle: ' + audit.detailUniqueIds);
+  Logger.log('Unique Ids in annual sheets: ' + audit.annualUniqueIds);
+  Logger.log('Detalle IDs present in annual sheets: ' + audit.matchedDetailUniqueIds);
+  Logger.log('Detalle IDs missing from annual sheets: ' + audit.missingFromAnnual.length);
+  Logger.log('Annual IDs not present in Detalle: ' + audit.extraInAnnual.length);
+
+  Logger.log('Years found in Detalle: ' + years.sort().join(', '));
+
+  Object.keys(audit.byYear).forEach(year => {
+    Logger.log('Ano ' + year + ' en hojas mensuales:');
+    const yearAudit = audit.byYear[year];
+    Logger.log('  filas=' + yearAudit.rows + ', uniqueIds=' + yearAudit.uniqueIds);
+
+    MONTH_SHEET_NAMES.forEach(sheetName => {
+      const sheetAudit = yearAudit.bySheet[sheetName] || { rows: 0, uniqueIds: 0 };
+      if (sheetAudit.rows > 0) {
+        Logger.log('  ' + sheetName + ': rows=' + sheetAudit.rows + ', uniqueIds=' + sheetAudit.uniqueIds);
+      }
+    });
+  });
+
+  if (audit.missingFromAnnual.length > 0) {
+    Logger.log('Missing Unique Id sample: ' + audit.missingFromAnnual.slice(0, 20).join(', '));
   }
 }
 
 function testAppendFirstInvoiceToSheetNoDuplicates() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -1122,6 +1672,39 @@ function testProcessedLabel() {
   Logger.log('Label ready: ' + label.getName());
 }
 
+function testListProjectTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  Logger.log('--- Triggers del proyecto ---');
+  Logger.log('Total: ' + triggers.length);
+
+  triggers.forEach((trigger, index) => {
+    const handler = trigger.getHandlerFunction ? trigger.getHandlerFunction() : 'desconocido';
+    const source = trigger.getTriggerSource ? trigger.getTriggerSource() : 'desconocido';
+    const eventType = trigger.getEventType ? trigger.getEventType() : 'desconocido';
+
+    Logger.log(
+      `${index + 1} | handler=${handler} | source=${source} | eventType=${eventType}`
+    );
+  });
+}
+
+function ensureHourlyInvoiceTrigger() {
+  const existing = ScriptApp.getProjectTriggers()
+    .filter(trigger => trigger.getHandlerFunction() === 'processPendingInvoiceEmails');
+
+  if (existing.length > 0) {
+    Logger.log('Ya existen ' + existing.length + ' trigger(s) para processPendingInvoiceEmails. No se creÃƒÂ³ uno nuevo.');
+    return false;
+  }
+
+  ScriptApp.newTrigger('processPendingInvoiceEmails')
+    .timeBased()
+    .everyHours(1)
+    .create();
+  Logger.log('Trigger creado: processPendingInvoiceEmails (cada hora).');
+  return true;
+}
+
 function getOrCreateLabel(labelName) {
   let label = GmailApp.getUserLabelByName(labelName);
 
@@ -1133,7 +1716,7 @@ function getOrCreateLabel(labelName) {
 }
 
 function testMarkFirstInvoiceEmailAsProcessed() {
-  const query = 'has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = 'has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   for (const thread of threads) {
@@ -1169,7 +1752,7 @@ function threadHasProcessedLabel(thread) {
 }
 
 function testSearchOnlyUnprocessedInvoiceEmails() {
-  const query = '-label:\"facturas/procesado\" has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+  const query = '-label:\"facturas/procesado\" has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 10);
 
   Logger.log('Unprocessed threads found: ' + threads.length);
@@ -1185,11 +1768,11 @@ function testSearchOnlyUnprocessedInvoiceEmails() {
   });
 }
 
-function processPendingInvoiceEmails() {
-  const query = '-label:\"facturas/procesado\" has:attachment (\"factura electrónica\" OR \"factura electronica\" OR \"documento electrónico\" OR \"documento electronico\")';
+function processPendingInvoiceEmailsLegacy() {
+  const query = '-label:\"facturas/procesado\" has:attachment (\"factura electrÃƒÂ³nica\" OR \"factura electronica\" OR \"documento electrÃƒÂ³nico\" OR \"documento electronico\")';
   const threads = GmailApp.search(query, 0, 20);
 
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const annualSpreadsheetCache = {};
 
   let processedCount = 0;
   let skippedDuplicates = 0;
@@ -1221,7 +1804,7 @@ function processPendingInvoiceEmails() {
           try {
             parsedData = parseInvoiceXml(attachment);
           } catch (error) {
-            Logger.log('XML inválido: ' + attachment.getName() + ' -> ' + error.message);
+            Logger.log('XML invÃƒÂ¡lido: ' + attachment.getName() + ' -> ' + error.message);
             Logger.log('Primeros 300 chars XML: ' + attachment.getDataAsString().substring(0, 300));
             parsedData = null;
           }
@@ -1236,14 +1819,6 @@ function processPendingInvoiceEmails() {
         continue;
       }
 
-      if (invoiceAlreadyExistsInMonthlySheets(spreadsheet, parsedData.uniqueId)) {
-        markThreadAsProcessed(thread);
-        skippedDuplicates++;
-        threadProcessed = true;
-        Logger.log('Duplicate skipped and thread marked as processed: ' + parsedData.invoiceNumber);
-        break;
-      }
-
       const monthFolder = getOrCreateMonthFolder(parsedData.issueDate);
 
       const savedPdf = pdfAttachment ? saveFileIfNotExists(monthFolder, pdfAttachment) : null;
@@ -1256,6 +1831,21 @@ function processPendingInvoiceEmails() {
         savedXml.getName(),
         savedXml.getUrl()
       );
+      const spreadsheet = getOrCreateAnnualSpreadsheetForYear(target.year, annualSpreadsheetCache);
+      if (!spreadsheet) {
+        Logger.log('No se pudo resolver el spreadsheet anual para la factura: ' + parsedData.invoiceNumber);
+        skippedInvalid++;
+        threadProcessed = true;
+        break;
+      }
+
+      if (invoiceAlreadyExistsInMonthlySheets(spreadsheet, parsedData.uniqueId)) {
+        markThreadAsProcessed(thread);
+        skippedDuplicates++;
+        threadProcessed = true;
+        Logger.log('Duplicate skipped and thread marked as processed: ' + parsedData.invoiceNumber);
+        break;
+      }
 
       appendInvoiceToMonthlySheet(spreadsheet, target.sheetName, target.row);
       markThreadAsProcessed(thread);
@@ -1276,4 +1866,259 @@ function processPendingInvoiceEmails() {
   Logger.log('Processed: ' + processedCount);
   Logger.log('Duplicates skipped: ' + skippedDuplicates);
   Logger.log('Invalid skipped: ' + skippedInvalid);
+}
+
+function processPendingInvoiceEmails() {
+  const query = '-label:"facturas/procesado" has:attachment ("factura electrÃƒÆ’Ã‚Â³nica" OR "factura electronica" OR "documento electrÃƒÆ’Ã‚Â³nico" OR "documento electronico")';
+  const threads = GmailApp.search(query, 0, 20);
+
+  const annualSpreadsheetCache = {};
+
+  let processedCount = 0;
+  let skippedDuplicates = 0;
+  let skippedInvalid = 0;
+  const invalidSamples = [];
+
+  for (const thread of threads) {
+    Logger.log('Revisando thread: ' + thread.getFirstMessageSubject());
+    if (threadHasProcessedLabel(thread)) {
+      continue;
+    }
+
+    let threadProcessed = false;
+    let threadHasXmlAttachment = false;
+    let threadInvalidReason = '';
+    const messages = thread.getMessages();
+
+    for (const message of messages) {
+      const attachments = message.getAttachments();
+      const messageSubject = message.getSubject ? message.getSubject() : thread.getFirstMessageSubject();
+
+      let xmlAttachment = null;
+      let pdfAttachment = null;
+      let parsedData = null;
+
+      for (const attachment of attachments) {
+        const fileName = attachment.getName().toLowerCase();
+
+        if (fileName.endsWith('.xml')) {
+          threadHasXmlAttachment = true;
+          xmlAttachment = attachment;
+          Logger.log('Procesando XML adjunto: ' + attachment.getName());
+
+          try {
+            parsedData = parseInvoiceXml(attachment);
+          } catch (error) {
+            threadInvalidReason = 'XML invalido: ' + error.message;
+            Logger.log('XML invÃƒÆ’Ã‚Â¡lido: ' + attachment.getName() + ' -> ' + error.message);
+            Logger.log('Primeros 300 chars XML: ' + attachment.getDataAsString().substring(0, 300));
+            parsedData = null;
+          }
+        }
+
+        if (fileName.endsWith('.pdf')) {
+          pdfAttachment = attachment;
+        }
+      }
+
+      if (!xmlAttachment || !parsedData) {
+        if (!threadHasXmlAttachment) {
+          threadInvalidReason = 'Sin attachment XML';
+        } else if (!parsedData) {
+          threadInvalidReason = threadInvalidReason || 'XML presente pero no se pudo parsear';
+          Logger.log('XML parse issue para mensaje: ' + messageSubject);
+        }
+        continue;
+      }
+
+      const monthFolder = getOrCreateMonthFolder(parsedData.issueDate);
+
+      const savedPdf = pdfAttachment ? saveFileIfNotExists(monthFolder, pdfAttachment) : null;
+      const savedXml = saveFileIfNotExists(monthFolder, xmlAttachment);
+
+      const target = buildMonthlyProcessingTarget(
+        parsedData,
+        savedPdf ? savedPdf.getName() : '',
+        savedPdf ? savedPdf.getUrl() : '',
+        savedXml.getName(),
+        savedXml.getUrl()
+      );
+
+      const spreadsheet = getOrCreateAnnualSpreadsheetForYear(target.year, annualSpreadsheetCache);
+      if (!spreadsheet) {
+        Logger.log('No se pudo resolver el spreadsheet anual para la factura: ' + parsedData.invoiceNumber);
+        skippedInvalid++;
+        threadInvalidReason = 'No se pudo abrir o crear spreadsheet anual';
+        threadProcessed = true;
+        break;
+      }
+
+      if (invoiceAlreadyExistsInMonthlySheets(spreadsheet, parsedData.uniqueId)) {
+        markThreadAsProcessed(thread);
+        skippedDuplicates++;
+        threadProcessed = true;
+        Logger.log('Duplicate skipped and thread marked as processed: ' + parsedData.invoiceNumber);
+        break;
+      }
+
+      appendInvoiceToMonthlySheet(spreadsheet, target.sheetName, target.row);
+      markThreadAsProcessed(thread);
+
+      processedCount++;
+      threadProcessed = true;
+      Logger.log('Invoice processed successfully: ' + parsedData.invoiceNumber);
+      break;
+    }
+
+    if (!threadProcessed) {
+      skippedInvalid++;
+      const reason = threadInvalidReason || 'No se encontro XML valido tras revisar mensajes';
+      Logger.log('Thread skipped: ' + reason + ' | ' + thread.getFirstMessageSubject());
+      invalidSamples.push(thread.getFirstMessageSubject() + ' -> ' + reason);
+    }
+  }
+
+  Logger.log('--- Summary ---');
+  Logger.log('Processed: ' + processedCount);
+  Logger.log('Duplicates skipped: ' + skippedDuplicates);
+  Logger.log('Invalid skipped: ' + skippedInvalid);
+
+  if (invalidSamples.length > 0) {
+    Logger.log('Invalid sample count: ' + Math.min(20, invalidSamples.length) + ' de ' + invalidSamples.length);
+    invalidSamples.forEach(sample => Logger.log('Invalid thread sample: ' + sample));
+  }
+}
+
+function migrateLegacyMixedMonthlySheetsByYear() {
+  const legacySpreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const legacySpreadsheetName = legacySpreadsheet.getName();
+  const legacyYearMatch = legacySpreadsheetName.match(/(\d{4})\s*$/);
+  const legacyYear = legacyYearMatch ? legacyYearMatch[1] : null;
+  const cachedAnnualSpreadsheets = {};
+  const rowsByYearAndSheet = {};
+  const rowsToKeepInLegacyBySheet = {};
+  const movedSampleRows = {};
+  let totalRowsScanned = 0;
+  let movedRows = 0;
+  let keptRows = 0;
+  let invalidDateRows = 0;
+
+  MONTH_SHEET_NAMES.forEach(sheetName => {
+    const sheet = legacySpreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      return;
+    }
+
+    const rows = getMonthlyDetailRows(sheet);
+    rows.forEach(row => {
+      totalRowsScanned++;
+      const issueDate = getDateOnlyForSheet(row[0]);
+      if (!issueDate) {
+        if (!rowsToKeepInLegacyBySheet[sheetName]) {
+          rowsToKeepInLegacyBySheet[sheetName] = [];
+        }
+
+        rowsToKeepInLegacyBySheet[sheetName].push(row);
+        invalidDateRows++;
+        return;
+      }
+
+      const year = String(issueDate.getFullYear());
+      if (legacyYear && year === legacyYear) {
+        if (!rowsToKeepInLegacyBySheet[sheetName]) {
+          rowsToKeepInLegacyBySheet[sheetName] = [];
+        }
+
+        rowsToKeepInLegacyBySheet[sheetName].push(row);
+        keptRows++;
+        return;
+      }
+
+      const targetSheetName = MONTH_SHEET_NAMES[issueDate.getMonth()];
+      if (!rowsByYearAndSheet[year]) {
+        rowsByYearAndSheet[year] = {};
+      }
+      if (!rowsByYearAndSheet[year][targetSheetName]) {
+        rowsByYearAndSheet[year][targetSheetName] = [];
+      }
+
+      rowsByYearAndSheet[year][targetSheetName].push(row);
+      if (!movedSampleRows[year]) {
+        movedSampleRows[year] = row[14] || '';
+      }
+    });
+  });
+
+  Object.keys(rowsByYearAndSheet)
+    .sort()
+    .forEach(year => {
+      const spreadsheet = getOrCreateAnnualSpreadsheetForYear(year, cachedAnnualSpreadsheets);
+      if (!spreadsheet) {
+        Logger.log('No se pudo resolver el spreadsheet anual para year=' + year + ' durante la reparacion por ano.');
+        return;
+      }
+
+      const bySheet = rowsByYearAndSheet[year];
+      Object.keys(bySheet).forEach(monthSheetName => {
+        const existingRows = getMonthlyDetailRows(spreadsheet.getSheetByName(monthSheetName) || getOrCreateSheet(spreadsheet, monthSheetName));
+        const existingIds = {};
+        existingRows.forEach(row => {
+          const uniqueId = String(row[14] || '').trim();
+          if (uniqueId) {
+            existingIds[uniqueId] = true;
+          }
+        });
+
+        const sourceRows = bySheet[monthSheetName];
+        const mergedRows = existingRows.slice();
+        sourceRows.forEach(row => {
+          const uniqueId = String(row[14] || '').trim();
+          if (uniqueId && !existingIds[uniqueId]) {
+            mergedRows.push(row);
+            existingIds[uniqueId] = true;
+            movedRows++;
+          }
+        });
+
+        writeMonthlySheet(spreadsheet.getSheetByName(monthSheetName) || getOrCreateSheet(spreadsheet, monthSheetName), mergedRows);
+      });
+    });
+
+  if (legacyYear) {
+    MONTH_SHEET_NAMES.forEach(monthSheetName => {
+      const sheet = legacySpreadsheet.getSheetByName(monthSheetName);
+      if (!sheet) {
+        return;
+      }
+
+      const keptRowsForSheet = rowsToKeepInLegacyBySheet[monthSheetName] || [];
+      writeMonthlySheet(sheet, keptRowsForSheet);
+    });
+  }
+
+  const keptRowsTotal = Object.keys(rowsToKeepInLegacyBySheet).reduce((total, sheetName) => {
+    return total + (rowsToKeepInLegacyBySheet[sheetName] || []).length;
+  }, 0);
+
+  Object.keys(rowsByYearAndSheet)
+    .sort()
+    .forEach(year => {
+      Logger.log(
+        'Ano ' + year + ': rows candidatas en legacy = ' +
+        Object.keys(rowsByYearAndSheet[year]).reduce((total, monthName) => total + rowsByYearAndSheet[year][monthName].length, 0) +
+        ', ejemplo uniqueId=' + (movedSampleRows[year] || '')
+      );
+    });
+
+  Logger.log('--- Legacy split summary ---');
+  Logger.log('Legacy rows leidas: ' + totalRowsScanned);
+  Logger.log('Rows agregadas a libros anuales: ' + movedRows);
+  Logger.log('Rows conservadas en libro base: ' + keptRowsTotal + ' (incluye ' + invalidDateRows + ' con fecha invalida)');
+  Logger.log('Rows del ano base conservadas: ' + keptRows);
+  Logger.log('Anios detectados en legacy: ' + Object.keys(rowsByYearAndSheet).sort().join(', '));
+  if (legacyYear) {
+    Logger.log('Libro base detectado como ano ' + legacyYear + '. Se mantuvo ese ano y se movieron los demas anos.');
+  } else {
+    Logger.log('No se pudo inferir el ano base del archivo legado. No se realizo limpieza por ano.');
+  }
 }
