@@ -1,143 +1,85 @@
 # Contexto activo del proyecto
 
-Ultima actualizacion: 2026-06-29.
+Ultima actualizacion: 2026-07-02.
 
-Este es el documento canonico para retomar el trabajo en `invoice-collector`. Si hay dudas entre este archivo, el README, documentos historicos o notas de chat, partir de este archivo y luego verificar contra el repo y Apps Script.
+Este documento es la referencia canonica para retomar el trabajo. Si hay duda entre docs, priorizar este archivo y luego validar contra repo y Apps Script.
 
 ## Proposito
 
-Automatizar el procesamiento de facturas electronicas recibidas por Gmail:
+Automatizar facturas electronicas desde Gmail:
 
 1. Buscar correos candidatos.
-2. Detectar adjuntos XML y PDF por extension.
-3. Usar el XML como fuente principal de datos.
+2. Detectar adjuntos `.xml` y `.pdf`.
+3. Parsear XML.
 4. Guardar XML/PDF en Google Drive por anio y mes de emision.
-5. Registrar la factura en Google Sheets.
+5. Registrar la factura en Google Sheets por anio y mes.
 6. Evitar duplicados por `Unique Id`.
-7. Marcar el hilo con la etiqueta `facturas/procesado`.
+7. Marcar hilos como `facturas/procesado`.
 
 ## Recursos fijos
 
-- Repo GitHub: `Lamprophony1/invoice-collector`
-- Carpeta Drive: `2- Contabilidad Rafael Garcia`
+- Repo: `Lamprophony1/invoice-collector`
+- Carpeta Drive base: `2- Contabilidad Rafael Garcia`
 - Folder ID: `1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy`
-- Hoja por año en Sheets: `Resumen Facturas Electronicas AAAA` en la carpeta Drive (`AAAA` es el año de emision)
-- Spreadsheet de referencia base (2026): `Resumen Facturas Electronicas 2026`
+- Hoja base por anio (2026): `Resumen Facturas Electronicas 2026`
+- Hoja por anio en Sheets: `Resumen Facturas Electronicas AAAA`, dentro de `2- Contabilidad Rafael Garcia/AAAA`
 - Spreadsheet ID base: `1koM-mlSu7cUsF9-VnokKfcWiqdZYKiXUkyMx8q29HeY`
-- Salida principal en cada libro anual: hojas mensuales `Enero` a `Diciembre`
-- Hoja historica/respaldo temporal: `Detalle`
 - Label Gmail: `facturas/procesado`
-- Apps Script root local: `src/`
+- Root local del script: `src/`
 - Funcion principal: `processPendingInvoiceEmails`
 
-No cambiar IDs, nombres de hojas, carpetas, labels ni estructura del repo sin validarlo primero.
+No cambiar IDs, nombres de hojas, carpeta base ni etiqueta sin validar.
 
-## Estado local verificado
+## Estado del código (`src/InvoiceProcessor.js`)
 
-Verificado el 2026-06-29 desde este repo:
+- `parseInvoiceXml(attachment)` soporta variantes de XML: `DE`, `rLoteDE->rDE->DE`, `rDE->DE`, `Envelope->Body->rEnviDe->xDE->rDE->DE`.
+- Normaliza BOM y declara UTF-16 a UTF-8 para parseo robusto.
+- Logging operativo con `Revisando thread: ...`.
+- Guardado de archivos en Drive por fecha:
+  - `2- Contabilidad Rafael Garcia/<AAAA>/<MM - Mes>/`
+- Libros anuales ubicados en:
+  - `2- Contabilidad Rafael Garcia/<AAAA>/Resumen Facturas Electronicas <AAAA>`
+- Registro contable principal:
+  - hoja anual por año + 12 hojas mensuales (`Enero` a `Diciembre`).
+  - resumen mensual arriba + detalle abajo en cada hoja.
+  - fecha sin hora en formato `dd/MM/yyyy`.
+- `Detalle` queda como respaldo y migración histórica.
+- Control de duplicados:
+  - por `Unique Id`.
+  - sobre hojas mensuales del libro anual.
 
-- Rama: `main`, alineada con `origin/main` antes de los cambios documentales y el pull de Apps Script.
-- `clasp.cmd --version` responde `3.3.0`.
-- `clasp.cmd status` lista como trackeados solo `src/appsscript.json` y `src/InvoiceProcessor.js`.
-- `clasp.cmd status` no muestra archivos extra no trackeados.
-- El pull de Apps Script ya fue realizado y trajo cambios en `src/InvoiceProcessor.js`.
+### Funciones operativas relevantes
 
-Estado local de `src/InvoiceProcessor.js`:
+- `getOrCreateYearFolder` + `getOrCreateMonthFolder`: estructura de carpetas.
+- `getOrCreateAnnualSpreadsheetForYear` + `ensureAnnualSpreadsheetInYearFolder`: manejo de libros por anio.
+- `migrateAnnualSpreadsheetsToYearFolders`: reubica libros anuales viejos a folders por anio.
+- `buildMonthlyProcessingTarget`: define objetivo anio/sheet para cada factura.
+- `appendInvoiceToMonthlySheet`: inserta fila en la hoja del mes.
+- `migrateDetalleToMonthlySheets`: migra desde `Detalle`.
+- `auditDetalleToMonthlySheets`: auditora consistencia con `Unique Id`.
+- `migrateLegacyMixedMonthlySheetsByYear` + `migrateLegacyMixedMonthlySheetsByYearLegacy`: limpieza de legacy mezclado por anio.
+- `testListProjectTriggers`: lista triggers del proyecto.
+- `ensureHourlyInvoiceTrigger`: crea trigger horario para `processPendingInvoiceEmails`.
 
-- Tiene `try/catch` alrededor de `parseInvoiceXml(attachment)` dentro de `processPendingInvoiceEmails`.
-- Tiene soporte para XML con raiz directa `DE`.
-- Tiene soporte para XML con raiz `rLoteDE`.
-- Tiene soporte para XML con raiz `rDE`.
-- Tiene soporte para SOAP Envelope: `Envelope -> Body -> rEnviDe -> xDE -> rDE -> DE`.
-- Normaliza XML con BOM y declaracion `encoding="UTF-16"`.
-- Tiene el log `Revisando thread: ...` al inicio del loop de threads.
-- Registra facturas nuevas en hojas mensuales, no en `Detalle`.
-- Controla duplicados por `Unique Id` en las hojas mensuales.
-- Las funciones de prueba y produccion siguen mezcladas. No limpiarlas todavia.
+## Estado operativo verificado
 
-## Estado reportado por el handoff
+- `clasp.cmd --version` => `3.3.0`.
+- `clasp.cmd status` muestra `src/appsscript.json` y `src/InvoiceProcessor.js`.
+- `processPendingInvoiceEmails` corre en modo mensual sin excepciones.
+- `migrateDetalleToMonthlySheets` / `auditDetalleToMonthlySheets` muestran consistencia con 219 `Unique Ids` (segun logs).
 
-El handoff historico esta guardado en `docs/history/2026-06-29-codex-handoff.md`.
+## Siguiente paso unico recomendado
 
-Segun ese handoff:
+Consolidar cierre operativo:
 
-- Ya se creo un trigger horario para `processPendingInvoiceEmails`.
-- La ultima corrida manual confirmada termino con:
-  - `Processed: 17`
-  - `Duplicates skipped: 0`
-  - `Invalid skipped: 3`
-- `parseInvoiceXml` ya habia sido corregida para:
-  - raiz directa `DE`
-  - `rLoteDE -> rDE -> DE`
-  - `SOAP Envelope -> Body -> rEnviDe -> xDE -> rDE -> DE`
-  - raiz `rDE -> DE`
-  - XML con declaracion `encoding="UTF-16"` normalizada a `UTF-8`
-
-Importante: despues del pull, esa version ya esta reflejada en el archivo local actual.
-
-## Preflight de hilos invalidos
-
-Corrida manual ejecutada desde Apps Script el 2026-06-29 a las 13:12.
-
-Resumen:
-
-- `Processed: 0`
-- `Duplicates skipped: 0`
-- `Invalid skipped: 18`
-
-Subjects revisados que terminaron como `Thread skipped: no valid XML invoice found.`:
-
-- `Factura Electronica Sudameris`
-- `Factura Electronica Sudameris`
-- `Notificacion de credencial universitaria disponible`
-- `AVISO DE PAGO DE SERVICIOS`
-- `Notificacion de credencial universitaria disponible`
-- `FUJII DAVALOS S.A. Documento Electronico`
-- `890903407;SEGUROS GENERALES SURAMERICANA S.A;10414580272;01;SEGUROS GENERALES SURAMERICANA S.A;041`
-- `890903407;SEGUROS GENERALES SURAMERICANA S.A;10414174497;01;SEGUROS GENERALES SURAMERICANA S.A;041`
-- `Factura Electronica por servicios informaticos prestados.`
-- `Factura Electronica DOCUMENTA S.A.`
-- `Bancard - Factura por Costo del Servicio`
-- `900692428; UNIMARKA SAS; ETV69770; 01; UNIMARKA SAS`
-- `900692428; UNIMARKA SAS; ETV68954; 01; UNIMARKA SAS`
-- `900692428; UNIMARKA SAS; ETV68033; 01; UNIMARKA SAS`
-- `900692428; UNIMARKA SAS; ETV61233; 01; UNIMARKA SAS`
-- `AVISO DE PAGO DE SERVICIOS`
-- `Bancard - Factura por Costo del Servicio`
-- `900692428;UNIMARKA S.A.S;ETV24332;01;UNIMARKA S.A.S`
-
-Decision operativa:
-
-- La depuracion de estos hilos queda como seguimiento separado.
-- La implementacion de hojas mensuales puede continuar porque la migracion desde `Detalle` no depende de que estos hilos pendientes tengan XML valido.
-- Mas adelante conviene decidir si estos hilos deben marcarse como procesados, excluirse por query o tratarse con otra regla.
-
-## Estado de salida contable
-
-- La salida principal es un libro anual por año, con hojas mensuales: `Enero`, `Febrero`, `Marzo`, `Abril`, `Mayo`, `Junio`, `Julio`, `Agosto`, `Septiembre`, `Octubre`, `Noviembre`, `Diciembre`.
-- Cada hoja mensual tiene resumen arriba y detalle fila por fila abajo.
-- `Detalle` queda como respaldo temporal de migracion.
-- Las fechas en hojas mensuales se muestran como `dd/MM/yyyy`, sin hora.
-- Los links de PDF/XML se escriben como formulas `HYPERLINK`.
-- La migracion desde `Detalle` fue auditada el 2026-06-29: 219 `Unique Ids` en `Detalle`, 219 en hojas mensuales, 0 faltantes y 0 extras.
-
-## Proximo paso unico
-
-Completar la verificacion final y documentacion de la salida contable por hojas mensuales segun `docs/superpowers/plans/2026-06-29-hojas-mensuales-implementation.md`.
-
-## Reglas de trabajo
-
-- Avanzar paso a paso.
-- Un solo cambio funcional a la vez.
-- Primero identificar la causa real antes de cambiar codigo.
-- No proponer re-arquitectura sin causa concreta.
-- No limpiar helpers ni funciones de prueba hasta cerrar la depuracion de los 3 hilos invalidos.
-- Despues de cada cambio funcional, pedir o ejecutar una validacion concreta.
+1. Confirmar desde Drive que cada anio tenga su libro anual en su folder (`2023`, `2024`, `2025`, `2026`, etc.).
+2. Confirmar visualmente que cada hoja mensual muestra resumen + detalle.
+3. Mantener `docs/context.md` como unico estado vivo y luego pasar a ajustes solicitados por contadora.
 
 ## Mapa documental
 
-- `docs/context.md`: estado activo y proximo paso.
-- `docs/setup.md`: recursos, comandos y configuracion operativa.
-- `docs/overview.md`: descripcion funcional del sistema.
-- `docs/decisions.md`: decisiones tecnicas ya tomadas.
-- `docs/history/`: checkpoints y handoffs historicos.
+- `docs/context.md`: estado activo.
+- `docs/overview.md`: panorama funcional.
+- `docs/setup.md`: comandos, recursos y configuracion operativa.
+- `docs/decisions.md`: decisiones técnicas.
+- `docs/history/`: historicos y handoffs.

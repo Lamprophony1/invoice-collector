@@ -1,100 +1,58 @@
-# Overview
+# Visión general
 
 ## Objetivo
 
-Automatizar el procesamiento de facturas electronicas recibidas por correo, usando Google Apps Script para integrar Gmail, Google Drive y Google Sheets.
+Automatizar el procesamiento de facturas electronicas recibidas por Gmail usando Google Apps Script, con salida de documentos en Drive y registro contable en Google Sheets por año y por mes.
 
 ## Alcance funcional
 
-El sistema busca correos candidatos con adjuntos de factura, identifica archivos XML y PDF, extrae los datos fiscales desde el XML, guarda los archivos en Google Drive y registra cada factura en hojas mensuales de Google Sheets.
+- Buscar correos con facturas electronicas/documento electronico y adjuntos.
+- Detectar adjuntos `.xml` y `.pdf` por extension (nombre de archivo).
+- Parsear XML como fuente oficial.
+- Guardar XML/PDF en Drive en una estructura anual/mensual definida por la fecha de emision.
+- Registrar cada factura en el libro anual correspondiente, hoja mensual.
+- Evitar duplicados por `Unique Id`.
+- Marcar los hilos procesados con la etiqueta `facturas/procesado`.
 
-## Flujo funcional
-
-1. Buscar correos candidatos en Gmail.
-2. Excluir correos ya procesados mediante la etiqueta `facturas/procesado`.
-3. Identificar adjuntos `.xml` y `.pdf`.
-4. Parsear el XML como fuente principal de datos.
-5. Determinar la carpeta destino segun la fecha de emision del XML.
-6. Crear o reutilizar carpeta de anio y mes en Google Drive.
-7. Guardar XML y PDF en la carpeta correspondiente.
-8. Verificar si la factura ya existe en las hojas mensuales de Google Sheets.
-9. Registrar la factura en la hoja mensual correspondiente.
-10. Marcar el hilo como procesado.
-
-## Fuente de datos
-
-### XML
-
-Fuente principal para:
-- fecha de emision
-- proveedor
-- RUC proveedor
-- timbrado
-- numero de factura
-- moneda
-- condicion
-- importes
-- identificador unico
-
-### PDF
-
-Respaldo documental conservado en Drive.
-
-## Componentes
-
-### Gmail
-
-Entrada de correos y adjuntos.
-
-### Google Apps Script
-
-Logica de busqueda, parsing, guardado y registro.
-
-### Google Drive
-
-Almacenamiento documental organizado por anio y mes.
-
-### Google Sheets
-
-Registro contable estructurado en hojas mensuales.
-
-## Estructura de almacenamiento en Drive
+## Estructura de Drive
 
 ```text
 2- Contabilidad Rafael Garcia/
+  2023/
+    01 - Enero/
+    02 - Febrero/
+    ...
+  2024/
+  2025/
   2026/
-    03 - Marzo/
-    04 - Abril/
 ```
 
-## Estructura de registro en Sheets
+Ruta base fija:
 
-Archivo por año:
-`Resumen Facturas Electronicas AAAA` (donde `AAAA` es el anio de emision)
-Ejemplo: `Resumen Facturas Electronicas 2026`
+- `ROOT_FOLDER_ID = 1s4I_IZrV6_PyEqCV2xX6fFIh_yIR9Hgy`
 
-La salida contable principal usa hojas mensuales:
-- Enero
-- Febrero
-- Marzo
-- Abril
-- Mayo
-- Junio
-- Julio
-- Agosto
-- Septiembre
-- Octubre
-- Noviembre
-- Diciembre
+Cada carpeta de año también contiene el libro anual de Google Sheets:
 
-Cada hoja mensual contiene:
-- resumen mensual arriba
-- totales por condicion
-- totales por moneda
-- totales por proveedor/RUC
-- detalle fila por fila abajo
+```text
+2- Contabilidad Rafael Garcia/<AAAA>/Resumen Facturas Electronicas <AAAA>
+```
 
-Columnas del detalle mensual:
+## Estructura de Sheets
+
+Por cada año se mantiene un libro anual:
+
+- `Resumen Facturas Electrónicas <AAAA>` (por ejemplo `Resumen Facturas Electronicas 2026`)
+
+Dentro de cada libro:
+
+- Hojas mensuales: Enero, Febrero, Marzo, Abril, Mayo, Junio, Julio, Agosto, Septiembre, Octubre, Noviembre, Diciembre.
+- Cada hoja mensual incluye resumen arriba y detalle abajo (fila por fila).
+- Los links a PDF/XML se escriben con formula `HYPERLINK`.
+- Fecha formateada sin hora en formato `dd/MM/yyyy`.
+- `Unique Id` en columna de detalle para control de duplicados.
+
+Columna de detalle mensual:
+
 - Fecha
 - Proveedor
 - RUC Proveedor
@@ -111,37 +69,31 @@ Columnas del detalle mensual:
 - XML
 - Unique Id
 
-La hoja `Detalle` queda como respaldo temporal de migracion. No es la salida contable principal.
+## Hoja "Detalle"
 
-## Funcion principal
+`Detalle` queda como respaldo temporal y hoja de origen para migracion historica.
 
-La funcion principal esperada del flujo es:
+No es la salida contable principal.
 
-`processPendingInvoiceEmails`
+## Flujo principal
 
-Esta funcion:
-- busca correos pendientes
-- procesa facturas validas
-- evita duplicados en hojas mensuales
-- guarda archivos
-- registra filas en la hoja mensual correspondiente
-- marca correos como procesados
+Funcion base:
 
-## Estado general del flujo
+- `processPendingInvoiceEmails`
 
-El flujo fue validado paso a paso con pruebas manuales sobre:
-- conexion a Google Drive
-- conexion a Google Sheets
-- busqueda de correos en Gmail
-- deteccion de adjuntos XML y PDF
-- lectura y parseo de XML
-- creacion de carpetas mensuales
-- guardado de archivos
-- migracion desde `Detalle`
-- registro en hojas mensuales
-- control de duplicados por `Unique Id`
-- etiquetado de correos procesados
+Funciones auxiliares activas:
 
-La automatizacion quedo funcional en modo manual. El handoff del 2026-06-29 reporta que luego se creo un trigger horario para `processPendingInvoiceEmails`.
+- `migrateAnnualSpreadsheetsToYearFolders`
+- `migrateLegacyMixedMonthlySheetsByYear`
+- `migrateDetalleToMonthlySheets`
+- `auditDetalleToMonthlySheets`
+- `testListProjectTriggers`
+- `ensureHourlyInvoiceTrigger`
 
-Para continuar desde el estado mas reciente, usar primero `docs/context.md`.
+## Estado actual
+
+Actualizado al 2026-07-02.
+
+- El flujo principal ya escribe directamente en hojas mensuales por año/mes.
+- El control de duplicados usa `Unique Id` sobre hojas mensuales.
+- La migracion desde `Detalle` ya registra y audita consistente 219 facturas (segun los logs compartidos).

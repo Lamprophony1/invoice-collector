@@ -1,176 +1,91 @@
-# Decisions
+# Decisiones tecnicas
 
-## Objetivo de este documento
+## 1. XML como fuente principal
 
-Registrar las decisiones clave del proyecto, junto con su justificación, para mantener trazabilidad técnica y evitar rediscutir criterios ya validados.
+Se usa el XML como fuente oficial de datos de factura.
 
----
+Consequence:
 
-## 1. El XML es la fuente principal de datos
+- Los campos fiscales se parsean desde XML.
+- No dependemos de OCR ni lectura visual de PDF.
 
-### Decisión
-Usar el archivo XML como fuente oficial para extraer los datos fiscales de cada factura.
+## 2. PDF como respaldo documental
 
-### Justificación
-El XML contiene los datos estructurados del documento electrónico y permite obtener de forma confiable campos como:
-- fecha de emisión
-- proveedor
-- RUC proveedor
-- timbrado
-- número de factura
-- moneda
-- condición
-- importes
-- identificador único
+Se conserva el PDF (ademas del XML) en Drive para soporte contable y revision humana.
 
-### Consecuencia práctica
-El flujo principal no depende de OCR, IA ni lectura visual del PDF.
+## 3. Deteccion de adjuntos por extension
 
----
+Se detectan adjuntos por nombre (`.xml`, `.pdf`) antes que por `Content-Type`.
 
-## 2. El PDF se conserva como respaldo documental
+Consequence:
 
-### Decisión
-Guardar el PDF junto con el XML en Google Drive.
+- Se procesan mejor casos con MIME ambiguos.
 
-### Justificación
-Aunque el XML es la fuente principal de datos, el PDF sigue siendo útil para:
-- revisión humana
-- respaldo documental
-- consulta rápida por parte del usuario o la contadora
+## 4. Fecha de emision para ubicacion
 
-### Consecuencia práctica
-Cada factura válida debe intentar conservar ambos archivos: XML y PDF.
+La fecha de emision del XML define:
 
----
+- carpeta mensual de Drive (`YYYY/MM - Mes`)
+- hoja mensual de Sheets (`Enero`...`Diciembre`)
+- libro anual donde se guarda la factura (`Resumen Facturas Electronicas YYYY`)
 
-## 3. La detección de adjuntos se hace por extensión de archivo
+## 5. Etiquetado de hilo procesado
 
-### Decisión
-Identificar archivos por su extensión (`.xml` y `.pdf`) en lugar de depender exclusivamente del `Content-Type`.
+Se marca el hilo con `facturas/procesado` al finalizar:
 
-### Justificación
-Durante las pruebas reales se detectó que varios adjuntos válidos llegaban con tipos MIME inconsistentes, por ejemplo:
-- `application/octet-stream`
-- `application/xhtml+xml`
+- factura procesada
+- o factura descartada por duplicado
 
-### Consecuencia práctica
-La lógica de detección debe basarse primero en el nombre del archivo.
+Consequence:
 
----
+- evita reprocesos en corridas posteriores.
 
-## 4. La carpeta mensual se define por la fecha de emisión del XML
+## 6. Duplicados por Unique Id en libros mensuales
 
-### Decisión
-Determinar la carpeta destino en Drive usando la fecha de emisión (`issueDate`) extraída del XML.
+Se controla la duplicidad por `Unique Id` sobre las hojas mensuales del libro anual, no sobre campos variables del XML.
 
-### Justificación
-Contablemente tiene más sentido ordenar la documentación por fecha de emisión del comprobante que por la fecha de recepción del correo.
+Consequence:
 
-### Consecuencia práctica
-La estructura en Drive sigue el patrón:
+- evita inserciones repetidas aunque cambie el nombre o el orden de campos.
 
-```text
-2- Contabilidad Rafael Garcia/
-  YYYY/
-    MM - NombreDelMes/
-```
+## 7. Registro contable por año y mes
 
----
+Cada año tiene su propio libro:
 
-## 5. Los correos ya procesados se marcan con una etiqueta de Gmail
+- `Resumen Facturas Electronicas YYYY`
+- ubicado en `2- Contabilidad Rafael Garcia/YYYY`
+- con 12 pestañas mensuales fijas.
 
-### Decisión
-Aplicar la etiqueta `facturas/procesado` al hilo una vez que la factura fue tratada correctamente o identificada como duplicada.
+Consequence:
 
-### Justificación
-Esto evita reprocesar los mismos correos en futuras ejecuciones.
+- no se mezclan años en un solo libro.
 
-### Consecuencia práctica
-La búsqueda principal excluye hilos con esa etiqueta.
+## 8. Hoja Detalle como backup y migracion
 
----
+`Detalle` se mantiene como hoja historica y de migracion.
 
-## 6. Los duplicados en Google Sheets se controlan por `Unique Id`
+Consequence:
 
-### Decisión
-Antes de insertar una fila, verificar si el `Unique Id` ya existe en la hoja `Detalle`.
+- no se usa para ingreso nuevo.
+- se migran filas existentes a hojas mensuales cuando corresponde.
 
-### Justificación
-El nombre del archivo no es un criterio suficientemente confiable para evitar duplicados. El identificador único del documento electrónico es mucho más sólido.
+## 9. Limpieza de data legado mixta
 
-### Consecuencia práctica
-Si la factura ya existe en la planilla, no se agrega una nueva fila.
+Se añadieron funciones de migracion para separar/organizar data vieja:
 
----
+- `migrateLegacyMixedMonthlySheetsByYear`
+- `migrateAnnualSpreadsheetsToYearFolders`
 
-## 7. La automatización registra por libros anuales y hojas mensuales
+Consequence:
 
-### Decisión
-Usar un libro anual (por ejemplo `Resumen Facturas Electrónicas 2026`, `Resumen Facturas Electrónicas 2027`) y dentro de cada libro una pestaña mensual de `Enero` a `Diciembre`.
+- cada factura queda en su libro anual/mensual correcto sin perder historico.
 
-### Justificación
-Una estructura por año evita mezclar periodos contables y mantiene el detalle mensual más organizado para la contadora.
+## 10. Rollout progresivo y validado
 
-### Consecuencia práctica
-`Detalle` queda como respaldo temporal de migración, y el registro contable principal queda distribuido por año y mes.
+La evolucion se hizo por fases:
 
----
-
-## 8. La búsqueda de correos no depende solo del asunto
-
-### Decisión
-Buscar correos candidatos usando términos relacionados con facturación electrónica en el contenido indexado por Gmail, no solo en el asunto.
-
-### Justificación
-Se observó que muchos correos válidos no incluían "factura electrónica" o "documento electrónico" en el asunto, pero sí en el cuerpo del mensaje.
-
-### Consecuencia práctica
-La query de Gmail debe contemplar expresiones como:
-- `factura electrónica`
-- `factura electronica`
-- `documento electrónico`
-- `documento electronico`
-
-junto con `has:attachment`.
-
----
-
-## 9. El desarrollo se valida paso a paso antes de automatizar completamente
-
-### Decisión
-Construir el flujo validando primero cada bloque por separado:
-- conexión con Drive
-- conexión con Sheets
-- búsqueda de correos
-- detección de adjuntos
-- lectura de XML
-- parsing
-- guardado de archivos
-- inserción en Sheets
-- etiquetado en Gmail
-
-### Justificación
-Este proyecto integra varios servicios y es fácil romper algo si se automatiza todo de golpe sin validar piezas intermedias.
-
-### Consecuencia práctica
-La solución se construyó incrementalmente y cada fase dejó evidencia en logs antes de pasar a la siguiente.
-
----
-
-## 10. La extracción principal no usa IA
-
-### Decisión
-No usar IA como mecanismo principal para interpretar facturas.
-
-### Justificación
-El XML ya contiene la información estructurada necesaria y ofrece una vía más precisa, económica y mantenible.
-
-### Consecuencia práctica
-La IA queda, como mucho, para mejoras futuras, por ejemplo:
-- clasificación automática de gastos
-- categorización contable sugerida
-- detección de inconsistencias
-- resúmenes ejecutivos
-
-No forma parte del flujo base actual.
+- parsing y guardado
+- migracion/organizacion
+- ejecucion mensual
+- migraciones + auditorias
+- verificacion de trigger.
